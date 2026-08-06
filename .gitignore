@@ -1,0 +1,8 @@
+# 로컬 전용 Claude Code 설정 (권한 승인 내역 등)
+.claude/settings.local.json
+
+# API 키 등 로컬 비밀값
+.env
+
+# 다운로드한 원본 GIS/공공데이터 (대용량 바이너리, 일부 공공누리 4유형 라이선스로 재배포 제한)
+data/
