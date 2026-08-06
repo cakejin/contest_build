@@ -3,6 +3,7 @@
 ## 시작하기 전에
 - **HANDOVER.md를 먼저 읽을 것** — 요약 카드(30줄)부터 읽고, 필요한 절만 본문에서 찾아본다. 이 문서에 없는 배경(왜 이 결정을 했는지 등)이 궁금하면 `../contest_research/plans/`(ai-architecture·data-security·compliance-qa·execution-plan)와 `../contest_research/decision/qna/`를 절대경로로 직접 열어봐도 된다 — 같은 컴퓨터의 리서치 저장소이므로 접근 가능.
 - 이 저장소는 **계획이 아니라 실제 구현**을 담당한다. HANDOVER.md의 결정(스코프·LLM벤더·배포방식 등)은 이미 확정된 것이므로 재논의하지 않는다. 아키텍처 방향을 바꾸고 싶으면 먼저 사용자와 논의할 것.
+- 구현 중 HANDOVER.md의 가정·설계와 다른 게 확인되면 **DEV_LOG.md**에 남긴다(형식은 파일 상단 참조) — PM이 나중에 이걸 보고 `contest_research`의 계획 문서를 고칠지 판단한다. 여기 적는다고 계획이 자동으로 바뀌는 건 아니다.
 
 ## 착수 순서 (HANDOVER.md ⑦ 그대로)
 Week 1(GIS 가공 계층 스파이크, 최우선) → Week 2(계량 코어) → Week 3(LLM·특보·포트폴리오·규율 UI) → Week 4(평가·레드팀·마감). 리스크가 가장 큰 걸 먼저 검증한다 — UI나 겉모습부터 만들지 말 것.
