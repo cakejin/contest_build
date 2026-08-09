@@ -91,10 +91,61 @@ class UncertainPoint:
     )
 
 
-# Week1 스파이크에서 V-World로 라이브 지오코딩해 채운다(task: "신천 5지점 좌표 확보").
+# 2026-08-09 V-World 검색 API(type=place)로 지오코딩 — 도로명주소가 없는 다리 이름이라
+# geocoding.vworld.geocode_road_address()(주소 기반)가 아니라 search_place()(지명 기반)를
+# 썼다. 각 좌표는 own_region_distance_m과 비교해 "합리적인 근사"인지 검증했다(DEV_LOG.md
+# 2026-08-09 항목 참조) — 침산교·대봉교는 거리 오차 1~3m로 원본 실측과 사실상 일치,
+# 수성교·신천동은 같은 tier(근접/원거리)로는 일치하나 절대 거리는 §1.11 원본 실측과
+# 40~110m 차이가 난다(POI 좌표가 PM이 원래 짚은 지점과 정확히 같지 않을 수 있음).
+# own_region_distance_m 필드는 이 좌표로 재계산한 값이 아니라 §1.11 원본 실측표 값
+# 그대로다 — note 필드에 실제 재계산값과의 괴리를 남긴다.
 # 신천대로(봉덕동, 남구)는 §1.11에서 내부(0.0m)로 명확히 확인된 지점이라 애초에
 # "판정보류" 대상이 아니다 — 여기 4개만 판정보류 대상.
-KNOWN_UNCERTAIN_POINTS: list[UncertainPoint] = []
+KNOWN_UNCERTAIN_POINTS: list[UncertainPoint] = [
+    UncertainPoint(
+        label="대봉교(중구·남구 경계)",
+        lat=35.854937,
+        lon=128.606197,
+        own_region_distance_m=50.1,
+        note=(
+            "V-World 지명 검색에 다리 자체 POI가 없어 대봉교역(지하철역, 다리와 동일 "
+            "이천동 214-684) 좌표로 프록시. own_region(중구) SHP 기준 재계산 거리 47.1m "
+            "— §1.11 원본 50.1m와 근접 일치."
+        ),
+    ),
+    UncertainPoint(
+        label="수성교(수성동)",
+        lat=35.861410,
+        lon=128.608928,
+        own_region_distance_m=99.4,
+        note=(
+            "V-World 지명 검색 '수성교' POI(인공지명>기간시설>교통, 중구 대봉동 669-1천). "
+            "own_region(수성구) SHP 기준 재계산 거리 53.9m — §1.11 원본 99.4m와 tier(근접, "
+            "<=100m)는 같으나 절대값 괴리 45m, 정확히 같은 지점인지 미확정."
+        ),
+    ),
+    UncertainPoint(
+        label="신천동(신천역 인근)",
+        lat=35.874481,
+        lon=128.616722,
+        own_region_distance_m=395.6,
+        note=(
+            "V-World 지명 검색 '신천역(2번출구)' 버스정류장 POI(동구 신천동 522-1). "
+            "own_region(동구) SHP 기준 재계산 거리 287.2m — §1.11 원본 395.6m와 tier(원거리, "
+            ">100m)는 같으나 절대값 괴리 108m, 정확히 같은 지점인지 미확정."
+        ),
+    ),
+    UncertainPoint(
+        label="침산교(신천-금호강 합류부)",
+        lat=35.900975,
+        lon=128.592748,
+        own_region_distance_m=36.4,
+        note=(
+            "V-World 지명 검색 '침산교' POI(인공지명>기간시설>교통, 북구 침산동 663-8천). "
+            "own_region(북구) SHP 기준 재계산 거리 36.6m — §1.11 원본 36.4m와 사실상 일치."
+        ),
+    ),
+]
 
 
 def match_known_uncertain_point(

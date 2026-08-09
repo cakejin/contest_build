@@ -101,9 +101,19 @@ def query_flood_risk(
 
     tree = STRtree([zone.geom for zone in zones])
 
-    contains_idx = tree.query(point, predicate="contains")
-    if len(contains_idx) > 0:
-        chosen = zones[int(contains_idx[0])]
+    # 실측 확인(2026-08-09): STRtree.query(point, predicate="covers"/"contains")는
+    # 매우 복잡한 다중 파트 지오메트리(최대 3236 parts, polygonize+make_valid 재구성본)에서
+    # zone.geom.covers(point)가 직접 True를 반환하는 점조차 매치하지 못하는 케이스가
+    # 실측으로 확인됐다(GEOS의 STRtree 내부 prepared-geometry 판정이 이런 위상에서
+    # 신뢰 불가) — bbox 후보 필터링에만 STRtree를 쓰고, 실제 covers 판정은 개별
+    # shapely 지오메트리에 직접 호출한다(느리지만 zone 수가 적어 비용 무시 가능).
+    bbox_candidate_idx = tree.query(point)  # predicate 없음 = bbox intersects만
+    covering_zone = next(
+        (zones[int(i)] for i in bbox_candidate_idx if zones[int(i)].geom.covers(point)),
+        None,
+    )
+    if covering_zone is not None:
+        chosen = covering_zone
         in_polygon = True
         distance = 0.0
     else:
