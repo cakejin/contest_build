@@ -6,3 +6,25 @@
 
 # 다운로드한 원본 GIS/공공데이터 (대용량 바이너리, 일부 공공누리 4유형 라이선스로 재배포 제한)
 data/
+
+# Python 가상환경
+.venv/
+venv/
+
+# Python 캐시/빌드 산출물
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 테스트/커버리지 산출물
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 에디터/OS 잡파일
+.vscode/
+.idea/
+.DS_Store
