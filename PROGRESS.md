@@ -32,6 +32,7 @@
 - STRtree `predicate="contains"/"covers"` 질의가 복잡한 다중 파트 폴리곤에서 개별 geometry의 `.covers()`와 다른 결과를 내는 버그 발견·수정 (`gis/query.py`, `DEV_LOG.md` 2026-08-09 참조). Week 2 이후 STRtree predicate 재사용 시 주의.
 - "판정보류"는 거리 임계값 알고리즘이 아니라 PM의 수동 교차대조 판단(`DEV_LOG.md` 2026-08-09 참조) — `KNOWN_UNCERTAIN_POINTS`로 별도 lookup 처리.
 - 신천 4개 판정보류 지점 중 대봉교·침산교는 지오코딩 좌표가 §1.11 원본 실측 거리와 1~3m 오차로 근접 일치, 수성교·신천동은 같은 tier(근접/원거리)이나 절대 거리 40~110m 차이(정확히 같은 지점인지 미확정) — `gis/coverage.py` 주석 참조.
+- `query_flood_risk()`가 `regions` 인자 없이 호출될 때마다 SHP를 처음부터 재로딩(콜드 157.8초)하고 있었음 — HANDOVER §4.3이 전제한 "로컬 캐시로 즉시 전환"이 실제로는 없었던 것. Week1 테스트는 세션 스코프 fixture 덕에 우연히 안 걸렸음(실제 프로덕션 호출 경로는 테스트가 커버 안 하고 있었음). `functools.lru_cache`로 프로세스당 1회만 로딩하도록 수정(웜 0.0004초), `tests/test_query_caching.py`로 캐시 계약 회귀 등록. Week2·Week3 배치(300~500건) 착수 전 필수 전제였음 — 없었으면 배치 1회 약 8시간 소요. (`DEV_LOG.md` 2026-08-09 세 번째 항목 참조)
 
 **보류 항목**: B1(safemap 문의)은 Week 4까지 회신 대기 가능, 지금 막는 것 없음.
 
