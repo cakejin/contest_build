@@ -6,6 +6,7 @@ HANDOVER §4.2 홍수 에이전트 출력 스키마를 그대로 따른다.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 
 import shapely.geometry
@@ -73,6 +74,21 @@ def _pool_zones(regions: list[LoadedFloodRegion]) -> list[FloodRiskZone]:
     return [zone for region in regions for zone in region.zones]
 
 
+@functools.lru_cache(maxsize=1)
+def _cached_default_regions() -> tuple[LoadedFloodRegion, ...]:
+    """load_all_regions() 기본 소스 로딩 결과를 프로세스 수명 동안 1회만 계산한다.
+
+    실측(2026-08-09): load_all_regions()는 콜드 호출 시 157.8초 걸린다(6개 SHP를
+    pyshp로 읽고 최대 68,971점짜리 다중파트 폴리곤을 polygonize+make_valid로
+    재구성하기 때문 — loader.py `_shape_to_geometry` 참조). query_flood_risk()가
+    regions 인자 없이 호출될 때마다 이 비용을 다시 치르면 Week2(홍수 에이전트)·
+    Week3(포트폴리오 300~500건 배치)에서 감당 불가능하다(배치 1건당 95초 이상).
+    이 함수는 그 경로에서만 쓰인다 — 명시적으로 regions를 넘기는 호출(테스트 등)은
+    이 캐시를 우회하며 매번 새로 로딩된다(재현성 검증 목적이라 의도적).
+    """
+    return tuple(load_all_regions())
+
+
 def query_flood_risk(
     lat: float,
     lon: float,
@@ -87,7 +103,7 @@ def query_flood_risk(
     uncertain 필드에 판정보류 근거 첨부 — coverage/tier는 그대로 정직하게 반환,
     이 필드는 UI 라벨링용 오버레이일 뿐 판정 자체를 바꾸지 않는다).
     """
-    regions = regions if regions is not None else load_all_regions()
+    regions = regions if regions is not None else _cached_default_regions()
 
     if not is_within_coverage(lat, lon, regions):
         return _out_of_scope()
