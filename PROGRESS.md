@@ -38,16 +38,18 @@
 
 ---
 
-## Week 2 — 계량 코어 파이프라인 (다음 순서)
+## Week 2 — 계량 코어 파이프라인 ✅ 완료 (2026-08-11)
 
-- [ ] 홍수 에이전트 (Week1 게이트 소비)
-- [ ] 건물취약도 에이전트 (초기 가중치 w1~w4로 진행, B2 — 근거 문헌 캘리브레이션은 로드맵 이연)
-- [ ] 시나리오 에이전트 (몬테카를로 EAL, 시드 고정)
-- [ ] LangGraph fan-out/fan-in 골격
+- [x] 홍수 에이전트 (`src/climate_risk/agents/flood_agent.py`) — Week1 게이트 소비, source_id 태깅
+- [x] 건물취약도 에이전트 (`src/climate_risk/agents/building_agent.py`, `building/`) — 초기 가중치 w1~w4로 진행(B2), 주소→건축HUB 코드 해석 포함
+- [x] 시나리오 에이전트 (`src/climate_risk/agents/scenario_agent.py`, `scenario/eal.py`) — 몬테카를로 EAL, 시드 고정
+- [x] LangGraph fan-out/fan-in 골격 (`src/climate_risk/graph/pipeline.py`, `graph/run.py`)
 
-**Done 기준**: 주소 1건 → EAL 분포(mean/p50/p95/p99) + tier + vulnerability_score가 JSON으로 출력, 동일 seed 재실행 시 동일 값 재현 시연.
+**Done 기준 시연**: `python scripts/run_assessment.py --address "..." --collateral-value ...` 실행 → EAL 분포(mean/p50/p95/p99) + tier + vulnerability_score가 JSON으로 출력됨을 실주소(포항 인덕동)로 라이브 확인. 동일 seed 2회 실행 결과 바이트 단위로 완전 동일(재현성 확인). 서울시청(SHP 커버리지 밖) 주소로는 flood=OUT_OF_SCOPE·EAL=null(사유 명시)이 반환되고 building 에이전트는 fan-out대로 독립적으로 정상 작동함을 확인. `pytest tests/ -v` 47개 전부 통과(Week1 15개 + Week2 신규 32개).
 
-**절대 축소 금지**: EAL 시드 재현성(화이트박스 포지셔닝의 증거, §⑦ 잔여 리스크 참조).
+**절대 축소 금지**: EAL 시드 재현성(화이트박스 포지셔닝의 증거, §⑦ 잔여 리스크 참조) — 유지됨, `tests/test_eal_seed_reproducibility.py`로 회귀 고정.
+
+**Week 2 중 발견한 이슈**: 건축HUB `getBrTitleInfo`의 주소→코드 해석 경로(sigunguCd·bjdongCd·platGbCd·bun·ji)가 연구 단계에 전혀 검증되지 않았던 부분이라 구현 착수 시 라이브 체크포인트로 확정(DEV_LOG.md 2026-08-11 참조) — V-World 역지오코딩(`type=parcel`)으로 해결, 애초 계획했던 별도 폴백 경로(수동 법정동코드 테이블 등)는 불필요해짐. serviceKey 이중 인코딩 함정(`.env`에 이미 percent-encoding된 키를 `urlencode()`에 다시 넣으면 400 에러)도 이 과정에서 발견·해결.
 
 ---
 

@@ -104,3 +104,12 @@ FLOOD_SHP_SOURCES: list[FloodShpSource] = [
 COVERAGE_BBOX_BUFFER_M = 3000.0
 
 DEFAULT_SEARCH_RADIUS_M = 500.0
+
+# Week2 추가 — 건물취약도 에이전트(building/brhub.py)가 호출하는 건축HUB 서비스 경로.
+# 라이브 체크포인트로 실호출 확정됨(DEV_LOG.md 2026-08-11 참조) — 더는 TODO 아님.
+BR_HUB_BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService"
+
+# Week2 추가 — 시나리오 에이전트(scenario/eal.py) 몬테카를로 EAL 기본값.
+# HANDOVER.md §4.2 2.4 스펙: 기본 10,000회, 시드 고정 재현성 절대 축소 금지 항목.
+DEFAULT_EAL_SEED = 42
+DEFAULT_EAL_ITERATIONS = 10000
