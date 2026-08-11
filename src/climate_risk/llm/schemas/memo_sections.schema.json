@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MemoSections",
+  "type": "object",
+  "properties": {
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "심사메모의 한 문장 또는 짧은 절. 반드시 하나 이상의 source_id로 뒷받침되는 사실만 담는다."
+          },
+          "citations": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "text를 뒷받침하는 source_id 목록. 근거가 없으면 이 문장을 생성하지 말 것 — 빈 배열로 두지 말 것."
+          }
+        },
+        "required": ["text", "citations"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["sections"],
+  "additionalProperties": false
+}

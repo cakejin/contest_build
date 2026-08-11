@@ -113,3 +113,29 @@ BR_HUB_BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService"
 # HANDOVER.md §4.2 2.4 스펙: 기본 10,000회, 시드 고정 재현성 절대 축소 금지 항목.
 DEFAULT_EAL_SEED = 42
 DEFAULT_EAL_ITERATIONS = 10000
+
+# Week3 추가 — 큐레이션·합성 데이터·감사로그 경로.
+CURATED_DATA_DIR = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "curated"
+HINNAMNO_TIMELINE_PATH = CURATED_DATA_DIR / "hinnamno_2022" / "events.json"
+PORTFOLIO_DATA_PATH = CURATED_DATA_DIR / "portfolio" / "synthetic_portfolio.json"
+AUDIT_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "reviewer_ack_log.jsonl"
+ALERT_QUEUE_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "alert_queue_log.jsonl"
+
+# region_code 역조회(SHP 절대경로 문자열 -> region_code) — portfolio/geocode_cache.py가 홍수
+# 에이전트 결과(source_shp_file)에서 포트폴리오 필터링용 region_code를 유도할 때 쓴다. 하드코딩
+# 목록을 새로 만들지 않고 FLOOD_SHP_SOURCES 하나만 진실의 원천으로 유지 — gis/loader.py가
+# source_file=str(source.path)(절대경로 전체)로 태깅하므로 키도 동일하게 str(path)를 쓴다.
+SHP_FILENAME_TO_REGION_CODE: dict[str, str] = {
+    str(src.path): src.region_code for src in FLOOD_SHP_SOURCES
+}
+
+# Week3 추가 — 재심사 알림 임계치·인용실패율 폴백 컷.
+# HANDOVER.md §4.6 항목7·§4.2 2.5: 둘 다 "구체 수치 잠정 미정, 실측 데이터로 캘리브레이션 필요"라고
+# 명시된 잠정치다. Week2의 w1~w4·AEP_BY_FREQ_LABEL과 동일한 패턴 — 이름 붙은 상수로 노출해
+# 나중에 실측 골든셋으로 캘리브레이션할 자리를 코드에 선점해둔다.
+EAL_ALERT_THRESHOLD_PCT = 0.20  # 잠정치 — EAL 변화율이 이 값 이상이면 재심사 알림 큐에 등재
+CITATION_FAILURE_FALLBACK_THRESHOLD = 0.30  # 잠정치 — HANDOVER §4.2 2.5 "예 30%"
+
+MEMO_SCHEMA_PATH = (
+    Path(__file__).resolve().parent / "llm" / "schemas" / "memo_sections.schema.json"
+)

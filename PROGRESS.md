@@ -53,18 +53,20 @@
 
 ---
 
-## Week 3 — LLM·특보·포트폴리오·규율 UI
+## Week 3 — LLM·특보·포트폴리오·규율 UI ✅ 완료 (2026-08-11)
 
-- [ ] 메모 에이전트 + 인용검증 게이트 (인용 없는 문장 렌더링 차단)
-- [ ] 특보 에이전트 (힌남노 리플레이 우선)
-- [ ] 포트폴리오 배치 재계산 (경보지역 필터링 + 임계치 초과분만 알림)
-- [ ] HITL UI (워터마크·확인 클릭 로그)
-- [ ] 보호규율 문구 고정 (금지어 필터)
-- [ ] 커버리지 게이트 UI 표기 확정 ("판정보류(데이터 공백 — 위험 낮음 아님)")
+- [x] 메모 에이전트 + 인용검증 게이트 (`src/climate_risk/agents/memo_agent.py`, `memo/`) — 인용 없는/미등록 source_id 문장 실제 차단, 고실패율(>30%) 시 규칙기반 폴백
+- [x] 특보 에이전트 (`src/climate_risk/agents/advisory_agent.py`, `advisory/`) — 힌남노 2022-09 큐레이션 리플레이(실제 출처 URL 7건), 라이브 모드는 명시적 미구현 스텁
+- [x] 포트폴리오 배치 재계산 (`src/climate_risk/portfolio/`, `agents/portfolio_agent.py`) — 지역필터링(경보지역만) + EAL 변화율 임계치(잠정 20%) 초과분만 알림 큐, LTV/금리 필드 없음(회귀 테스트로 고정)
+- [x] HITL 워터마크 + 확인 클릭 감사로그 (`src/climate_risk/policy/disclosures.py`, `audit_log.py`) — CLI/JSON 확장으로 구현(웹 UI 아님, 사용자 결정)
+- [x] 보호규율 문구 고정 (`policy/forbidden_phrases.py`) — 금지어 필터, 메모 에이전트 출력에 이중 검증(인용 유효성과 독립된 검증축)
+- [x] 커버리지 게이트 UI 표기 확정 (`policy/coverage_labels.py`) — "판정보류(데이터 공백 — 위험 낮음 아님)"(OUT_OF_SCOPE는 별도 문구)
 
-**Done 기준**: "주소입력→힌남노리플레이→심사메모" 최소 데모 시나리오 1회 완주, 인용 없는 문장 실제 차단 컷 포함.
+**Done 기준 시연**: `python scripts/run_week3_demo.py --address "경상북도 포항시 남구 인덕로 27" --collateral-value 500000000` 라이브 실행 → 힌남노 7개 이벤트 리플레이(trigger_event=True) → 근거 인용 심사메모 11개 문장(전부 유효 인용, rejected_sentences=0) → 포트폴리오 40건 중 6건 지역매칭, 2건 재심사 알림(EAL 변화율 +49~+49%) 전부 확인. 인용 없는/지어낸 source_id 인용 문장이 실제로 차단되는 것은 `tests/test_week3_demo_smoke.py`로 회귀 고정. `pytest tests/ -v` 전체 통과(Week1~2 47개 + Week3 신규 84개).
 
-**절대 축소 금지**: 인용검증 게이트, 보호규율 문구 고정.
+**LLM 호출 메커니즘 변경**: HANDOVER §A3 "Anthropic API 직접 호출" 대신 API 키 미발급 상태로 `claude -p` CLI 서브프로세스 호출 채택(같은 Claude 모델, 벤더 결정과 배치되지 않음) — 상세는 `DEV_LOG.md` 2026-08-11 참조.
+
+**절대 축소 금지**: 인용검증 게이트, 보호규율 문구 고정. — 둘 다 유지됨.
 
 ---
 
