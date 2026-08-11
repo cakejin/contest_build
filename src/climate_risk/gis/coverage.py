@@ -51,10 +51,19 @@ def region_coverage_bbox(
     union_all() 등 실제 지오메트리 연산을 걸면 매우 느리다. bbox 계산에는
     정점 좌표의 min/max만 필요하므로 각 zone의 .bounds(가벼운 스캔)만 모아
     합치고, 복잡한 폴리곤 형상 자체는 건드리지 않는다.
+
+    is_within_coverage()가 query_flood_risk() 호출마다(포트폴리오 배치 300~500건
+    기준) region당 매번 재호출하므로, 결과를 region 객체 자신(coverage_bbox_cache)에
+    귀속시켜 캐싱한다 — buffer_m은 실제로 항상 기본값으로만 호출되므로(단일 호출부)
+    캐시 키에서 생략해도 안전하다.
     """
+    if region.coverage_bbox_cache is not None:
+        return region.coverage_bbox_cache
     xs_min, ys_min, xs_max, ys_max = zip(*(zone.geom.bounds for zone in region.zones))
     box = shapely.geometry.box(min(xs_min), min(ys_min), max(xs_max), max(ys_max))
-    return box.buffer(buffer_m, join_style="mitre")
+    bbox = box.buffer(buffer_m, join_style="mitre")
+    object.__setattr__(region, "coverage_bbox_cache", bbox)
+    return bbox
 
 
 def is_within_coverage(

@@ -27,10 +27,26 @@ from climate_risk.building.vulnerability import (
     VulnerabilityFactor,
     compute_vulnerability,
 )
+from climate_risk.geocoding.vworld import VWorldGeocodeError
 
 _RESOLUTION_FAILED_NOTE = "주소/좌표에서 건축물대장 조회 코드를 해석하지 못했습니다"
+_RESOLUTION_API_ERROR_NOTE = "주소/좌표 해석 중 외부 API 호출 실패 — 건물 정보 미확인"
 _API_ERROR_NOTE = "건축HUB API 호출 실패 — 건물 정보 미확인"
 _RESOLUTION_FAILED_SOURCE_ID = "building:resolution_failed"
+
+# resolve_admin_codes()·fetch_br_title_info()가 "예상된 부재"(None)가 아니라
+# 예외로 실패하는 경우 — V-World/건축HUB 상태 오류(VWorldGeocodeError/BrHubError),
+# 네트워크 장애(URLError·timeout, 둘 다 OSError 하위), 응답 파싱 실패(JSONDecodeError는
+# ValueError 하위, 예상 키 누락은 KeyError), 입력 형식 오류(resolve_from_pnu의 ValueError).
+# 이 전부를 캐치해 FAILED로 변환한다 — 모듈 docstring의 "API 장애≠위험 없음, 파이프라인이
+# 그 때문에 통째로 죽어서도 안 된다" 원칙 그대로.
+_EXPECTED_API_FAILURES: tuple[type[Exception], ...] = (
+    BrHubError,
+    VWorldGeocodeError,
+    OSError,
+    ValueError,
+    KeyError,
+)
 
 
 @dataclass(frozen=True)
@@ -72,7 +88,18 @@ def run_building_agent(
     if as_of_year is None:
         as_of_year = datetime.date.today().year
 
-    admin = resolve_admin_codes(lat=lat, lon=lon, address=address, pnu=pnu)
+    try:
+        admin = resolve_admin_codes(lat=lat, lon=lon, address=address, pnu=pnu)
+    except _EXPECTED_API_FAILURES:
+        return BuildingAgentOutput(
+            vulnerability_score=None,
+            contributing_factors=[],
+            source="",
+            source_id=_RESOLUTION_FAILED_SOURCE_ID,
+            missing_fields=["전체"],
+            status=STATUS_FAILED,
+            note=_RESOLUTION_API_ERROR_NOTE,
+        )
     if admin is None:
         return BuildingAgentOutput(
             vulnerability_score=None,
@@ -88,7 +115,7 @@ def run_building_agent(
 
     try:
         info: BrTitleInfo | None = fetch_br_title_info(admin)
-    except BrHubError:
+    except _EXPECTED_API_FAILURES:
         return BuildingAgentOutput(
             vulnerability_score=None,
             contributing_factors=[],

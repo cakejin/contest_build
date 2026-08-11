@@ -11,6 +11,7 @@ from climate_risk.agents.building_agent import run_building_agent
 from climate_risk.building.address_resolver import AdminCodeMatch, resolve_from_pnu
 from climate_risk.building.brhub import BrHubError, BrTitleInfo
 from climate_risk.building.vulnerability import STATUS_FAILED, STATUS_OK
+from climate_risk.geocoding.vworld import VWorldGeocodeError
 
 VALID_PNU = "4711111200002220005"  # sigungu=47111 bjdong=11200 platGb=0 bun=0222 ji=0005
 
@@ -80,6 +81,39 @@ def test_successful_resolution_and_fetch_produces_scored_output(monkeypatch):
     assert result.vulnerability_score is not None
     assert result.source_id == "building:4711111200002220005"
     assert result.missing_fields == []
+
+
+def test_resolution_api_error_returns_failed_status_not_exception(monkeypatch):
+    """resolve_admin_codes()가 None이 아니라 예외(V-World 상태 오류 등)로 실패해도
+    파이프라인이 죽지 않고 FAILED로 변환돼야 한다(리뷰 발견 항목 회귀 고정)."""
+
+    def _raise(**kwargs):
+        raise VWorldGeocodeError("status=ERROR 시뮬레이션")
+
+    monkeypatch.setattr(building_agent_module, "resolve_admin_codes", _raise)
+
+    result = run_building_agent(address="아무주소")
+
+    assert result.status == STATUS_FAILED
+    assert result.vulnerability_score is None
+    assert result.source_id == "building:resolution_failed"
+
+
+def test_fetch_network_error_returns_failed_status_not_exception(monkeypatch):
+    """fetch_br_title_info()가 BrHubError가 아니라 네트워크 계열 예외(OSError — URLError·
+    timeout의 상위 클래스)로 실패해도 FAILED로 변환돼야 한다(리뷰 발견 항목 회귀 고정)."""
+    monkeypatch.setattr(building_agent_module, "resolve_admin_codes", lambda **kwargs: ADMIN)
+
+    def _raise(admin):
+        raise OSError("네트워크 타임아웃 시뮬레이션")
+
+    monkeypatch.setattr(building_agent_module, "fetch_br_title_info", _raise)
+
+    result = run_building_agent(address="아무주소")
+
+    assert result.status == STATUS_FAILED
+    assert result.vulnerability_score is None
+    assert result.source_id == "building:4711111200002220005"
 
 
 def test_no_building_record_produces_failed_not_midpoint(monkeypatch):

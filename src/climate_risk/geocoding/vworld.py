@@ -43,7 +43,9 @@ class PlaceMatch:
     road_address: str
 
 
-def _get_json(path: str, params: dict[str, str]) -> dict:
+def get_json(path: str, params: dict[str, str]) -> dict:
+    """V-World `{_BASE_URL}/{path}` GET + JSON 파싱 — 이 모듈 밖(building/address_resolver.py의
+    역지오코딩 호출 등)에서도 같은 V-World HTTP 계약을 재사용하도록 공개해둔다."""
     url = f"{_BASE_URL}/{path}?" + urllib.parse.urlencode(params)
     with urllib.request.urlopen(url, timeout=10) as resp:
         return json.load(resp)
@@ -55,7 +57,7 @@ def geocode_road_address(address: str) -> GeocodedAddress | None:
     HANDOVER §2 데모 데이터 스펙: 매칭 실패는 담보 레코드 단위 폴백 경로를 타야 하므로
     (건축HUB 매칭 실패 시 합성 폴백과 동일한 패턴) 호출자가 명시적으로 처리해야 한다.
     """
-    data = _get_json(
+    data = get_json(
         "address",
         {
             "service": "address",
@@ -91,7 +93,7 @@ def search_place(query: str, size: int = 20) -> list[PlaceMatch]:
     담보 주소 지오코딩 경로가 아니다 — Week1 신천 판정보류 지점처럼 "이름은 알지만
     도로명주소가 없는" 지점을 1회성으로 찾을 때만 쓴다.
     """
-    data = _get_json(
+    data = get_json(
         "search",
         {
             "service": "search",

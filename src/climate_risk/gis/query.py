@@ -89,6 +89,24 @@ def _cached_default_regions() -> tuple[LoadedFloodRegion, ...]:
     return tuple(load_all_regions())
 
 
+@functools.lru_cache(maxsize=1)
+def _cached_default_zones() -> tuple[FloodRiskZone, ...]:
+    return tuple(_pool_zones(list(_cached_default_regions())))
+
+
+@functools.lru_cache(maxsize=1)
+def _cached_default_tree() -> STRtree | None:
+    """기본 경로(regions 미지정) 전용 STRtree — 프로세스 수명 동안 1회만 빌드한다.
+
+    수정 전에는 query_flood_risk() 호출마다(포트폴리오 배치 300~500건) zone 전체로
+    STRtree를 새로 빌드했다 — _cached_default_regions()가 이미 해결한 것과 같은
+    종류의 반복 비용이라 동일한 lru_cache 패턴으로 없앤다. regions를 명시적으로
+    넘기는 호출(테스트 등)은 이 캐시를 우회하며 매번 새로 빌드한다(기존 동작 유지).
+    """
+    zones = _cached_default_zones()
+    return STRtree([zone.geom for zone in zones]) if zones else None
+
+
 def query_flood_risk(
     lat: float,
     lon: float,
@@ -103,6 +121,7 @@ def query_flood_risk(
     uncertain 필드에 판정보류 근거 첨부 — coverage/tier는 그대로 정직하게 반환,
     이 필드는 UI 라벨링용 오버레이일 뿐 판정 자체를 바꾸지 않는다).
     """
+    using_default_regions = regions is None
     regions = regions if regions is not None else _cached_default_regions()
 
     if not is_within_coverage(lat, lon, regions):
@@ -111,11 +130,15 @@ def query_flood_risk(
     x, y = to_flood_map_crs(lat, lon)
     point = shapely.geometry.Point(x, y)
 
-    zones = _pool_zones(regions)
-    if not zones:
-        return _out_of_scope()
+    if using_default_regions:
+        zones = _cached_default_zones()
+        tree = _cached_default_tree()
+    else:
+        zones = _pool_zones(regions)
+        tree = STRtree([zone.geom for zone in zones]) if zones else None
 
-    tree = STRtree([zone.geom for zone in zones])
+    if not zones or tree is None:
+        return _out_of_scope()
 
     # 실측 확인(2026-08-09): STRtree.query(point, predicate="covers"/"contains")는
     # 매우 복잡한 다중 파트 지오메트리(최대 3236 parts, polygonize+make_valid 재구성본)에서

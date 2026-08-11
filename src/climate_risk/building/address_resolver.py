@@ -20,16 +20,11 @@
 
 from __future__ import annotations
 
-import json
 import re
-import urllib.parse
-import urllib.request
 from dataclasses import dataclass
 
 from climate_risk.config import VWORLD_API_KEY
-from climate_risk.geocoding.vworld import geocode_road_address
-
-_ADDRESS_BASE_URL = "https://api.vworld.kr/req/address"
+from climate_risk.geocoding.vworld import VWorldGeocodeError, geocode_road_address, get_json
 
 RESOLUTION_PNU = "PNU"
 RESOLUTION_REVERSE_GEOCODE = "VWORLD_REVERSE_GEOCODE_PARCEL"
@@ -72,8 +67,15 @@ def resolve_from_pnu(pnu: str) -> AdminCodeMatch:
 
 
 def _reverse_geocode_parcel(lat: float, lon: float) -> dict | None:
-    """좌표 -> V-World 역지오코딩(지번 타입). 매칭 없으면 None, 비정상 status면 예외."""
-    url = f"{_ADDRESS_BASE_URL}?" + urllib.parse.urlencode(
+    """좌표 -> V-World 역지오코딩(지번 타입). 매칭 없으면 None, 비정상 status면 예외.
+
+    HTTP GET + JSON 파싱은 geocoding/vworld.py의 get_json()을 그대로 재사용한다(같은
+    V-World API 계약이라 중복 구현할 이유가 없다) — 비정상 status도 그 모듈의
+    VWorldGeocodeError로 통일해, 호출자(building_agent.py)가 V-World 계열 실패를
+    하나의 예외 타입으로 캐치할 수 있게 한다.
+    """
+    data = get_json(
+        "address",
         {
             "service": "address",
             "request": "getAddress",
@@ -83,16 +85,16 @@ def _reverse_geocode_parcel(lat: float, lon: float) -> dict | None:
             "format": "json",
             "type": "parcel",
             "key": VWORLD_API_KEY,
-        }
+        },
     )
-    with urllib.request.urlopen(url, timeout=10) as resp:
-        data = json.load(resp)
 
     status = data["response"]["status"]
     if status == "NOT_FOUND":
         return None
     if status != "OK":
-        raise RuntimeError(f"V-World reverse geocode(parcel) status={status} lat={lat} lon={lon}")
+        raise VWorldGeocodeError(
+            f"V-World reverse geocode(parcel) status={status} lat={lat} lon={lon}"
+        )
 
     results = data["response"].get("result") or []
     if not results:

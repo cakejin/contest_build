@@ -47,6 +47,11 @@ class LoadedFloodRegion:
     source: FloodShpSource
     zones: list[FloodRiskZone] = field(default_factory=list)
     skipped_null_seg_codes: list[str] = field(default_factory=list)
+    # gis/coverage.py의 region_coverage_bbox()가 지연 계산 후 채우는 캐시 슬롯 —
+    # 이 region 객체 자체에 귀속시켜 id() 재사용 등으로 인한 오염 위험 없이 캐싱한다.
+    coverage_bbox_cache: shapely.geometry.base.BaseGeometry | None = field(
+        default=None, repr=False, compare=False
+    )
 
 
 def _shape_to_geometry(shp) -> shapely.geometry.base.BaseGeometry:
