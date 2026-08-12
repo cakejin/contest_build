@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* 색상 토큰은 contest_research/submission/ppt원고_담보기후여신심사AI.md에 이미 확정된
+   iM금융지주 브랜드 톤을 그대로 재사용한다(다크민트/민트/잉크/뮤트) — 발표자료와
+   데모 화면의 톤을 맞춘다. --color-* 네이밍은 Tailwind v4 @theme 규약을 따라
+   bg-title/text-accent 같은 유틸리티 클래스를 자동 생성한다. */
+@theme {
+  --color-title: #007f6c;
+  --color-accent: #00a88f;
+  --color-accent-soft: #cceded;
+  --color-ink: #192325;
+  --color-muted: #5b6466;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f2f4f4;
+  --color-border: #d0d4d5;
+  --color-warn-bg: #fdf7c9;
+  --color-warn-ink: #502e00;
+  --color-tier-inner: #c8443c;
+  --color-tier-near: #d88a2c;
+  --color-tier-far: #4a8f6a;
+  --color-tier-oos: #8a9296;
+
+  /* EAL 히스토그램용 민트 시퀀셜 램프(연→진, 손실액 크기 순) */
+  --color-ramp-1: #e6f5f2;
+  --color-ramp-2: #b8e3dc;
+  --color-ramp-3: #66c2b3;
+  --color-ramp-4: #00a88f;
+  --color-ramp-5: #007f6c;
+
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", -apple-system, sans-serif;
+
+  --shadow-card: 0 1px 2px rgba(16, 24, 25, 0.04), 0 10px 28px -16px rgba(16, 24, 25, 0.18);
+  --shadow-card-lg: 0 2px 4px rgba(16, 24, 25, 0.05), 0 18px 36px -18px rgba(16, 24, 25, 0.22);
+
+  --radius-card: 16px;
+  --radius-control: 10px;
+
+  --animate-pulse-dot: pulse-dot 1s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+@layer base {
+  body {
+    @apply text-ink font-sans antialiased m-0;
+    background: linear-gradient(180deg, #f6f8f8 0%, #eef1f1 320px, #eef1f1 100%);
+    line-height: 1.55;
+  }
+}

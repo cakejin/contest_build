@@ -1,0 +1,50 @@
+import type { AssessResult, ProgressEventPayload, RegionPreset } from './types'
+
+export async function fetchRegionPresets(): Promise<RegionPreset[]> {
+  const res = await fetch('/api/regions')
+  return res.json()
+}
+
+export interface AssessParams {
+  address: string
+  collateralValue: string
+  regionCode: string
+  mode: string
+  timelinePath?: string | null
+}
+
+export interface AssessStreamHandlers {
+  onProgress: (payload: ProgressEventPayload) => void
+  onResult: (result: AssessResult) => void
+  onError: () => void
+}
+
+/** SSE 스트림 — 백엔드가 실제 단계에 진입할 때 보낸 progress 이벤트를 그대로 순서대로
+ * 중계한다(포트폴리오 재계산 단계는 특보 트리거가 있을 때만 나타남). 연결을 닫는 함수를 반환한다. */
+export function startAssessStream(params: AssessParams, handlers: AssessStreamHandlers): () => void {
+  const query = new URLSearchParams({
+    address: params.address,
+    collateral_value: params.collateralValue,
+    region_code: params.regionCode,
+    mode: params.mode,
+  })
+  if (params.timelinePath) query.set('timeline_path', params.timelinePath)
+
+  const source = new EventSource(`/api/assess?${query.toString()}`)
+
+  source.addEventListener('progress', (ev) => {
+    handlers.onProgress(JSON.parse((ev as MessageEvent).data))
+  })
+
+  source.addEventListener('result', (ev) => {
+    handlers.onResult(JSON.parse((ev as MessageEvent).data))
+    source.close()
+  })
+
+  source.onerror = () => {
+    handlers.onError()
+    source.close()
+  }
+
+  return () => source.close()
+}
