@@ -14,22 +14,8 @@
 import pytest
 
 from climate_risk.gis.coverage import match_known_uncertain_point
-from climate_risk.gis.query import TIER_FAR, TIER_INNER, TIER_NEAR, query_flood_risk
-
-NAECHEON_POINTS = [
-    # (label, lat, lon, expected in_polygon, expected tier)
-    ("오어지(냉천 발원지)", 35.92159, 129.37452, False, TIER_NEAR),
-    ("포항직업전문학교(냉천 중류·인덕동)", 35.98768, 129.39979, True, TIER_INNER),
-    ("냉천교(냉천 하류·청림동)", 35.99347, 129.40130, False, TIER_NEAR),
-]
-
-SINCHEON_POINTS = [
-    ("신천대로(봉덕동·남구, 확정)", 35.833993, 128.605565, True, TIER_INNER),
-    ("대봉교(중구·남구 경계, 판정보류)", 35.854937, 128.606197, False, TIER_NEAR),
-    ("수성교(수성동, 판정보류)", 35.861410, 128.608928, False, TIER_NEAR),
-    ("신천동(신천역 인근, 판정보류)", 35.874481, 128.616722, False, TIER_FAR),
-    ("침산교(신천-금호강 합류부, 판정보류)", 35.900975, 128.592748, False, TIER_NEAR),
-]
+from climate_risk.gis.golden_points import NAECHEON_POINTS, SINCHEON_POINTS
+from climate_risk.gis.query import query_flood_risk
 
 
 @pytest.mark.parametrize("label,lat,lon,expected_in_polygon,expected_tier", NAECHEON_POINTS)

@@ -70,14 +70,15 @@
 
 ---
 
-## Week 4 — 평가·레드팀·컴플라이언스 마감·리허설·버퍼
+## Week 4 — 평가·레드팀·컴플라이언스 마감·리허설·버퍼 ✅ 완료 (2026-08-11)
 
-- [ ] 평가 대시보드 최소셋 (인용률·커버리지게이트 통과 등)
-- [ ] 레드팀 최우선 시나리오(1·2·4·9) 방어 확인
-- [ ] safemap GetMap 500 최종 상태 반영해 데모 문구 확정
-- [ ] ESG 화면 연결, 전체 리허설, 버퍼 1~2일
+- [x] 평가 대시보드 최소셋 (`src/climate_risk/evaluation/metrics.py`) — 인용률·커버리지게이트 통과율·EAL 재현성·금지어 부재·판정보류 오분류 여부 5개 지표, `scripts/run_eval_dashboard.py`로 라이브 실행
+- [x] 레드팀 최우선 시나리오(1·2·4·9) 방어 확인 (`src/climate_risk/policy/redteam_checks.py`) — 시나리오1(쓰기연동 미구현)·2(특보-EAL 시그니처 분리)·4(커버리지게이트)·9(금지어 필터)를 라이브 체크 함수+회귀테스트로 이중 확인, `scripts/run_redteam_demo.py --reviewer-note`로 감사로그 진입점 라이브 차단 시연
+- [x] safemap GetMap 500 최종 상태 반영해 데모 문구 확정 — Week4 시점 재확인해도 지속 500(원본 파라미터로 재현, 유효키/오타키 응답 동일 → 키 문제 아님 재확인), 기존 코드는 이미 "정적 큐레이션 실측 이력" 표기로만 구성돼 있어 코드 변경 불요(`DEV_LOG.md` 2026-08-11 참조)
+- [x] ESG 화면 연결 (`src/climate_risk/policy/esg_recommendations.py`) — 재심사 알림 큐 담보 전원에게 인하/지원 방향 4개 액션 템플릿만 추천, 인상 방향 로직 자체가 코드에 없음
+- [x] Week4 통합 리허설 (`src/climate_risk/graph/week4_demo.py`, `scripts/run_week4_demo.py`) — 버퍼 항목은 남은 시간 내 별도 착수 없음(전체 완주 확인이 우선)
 
-**Done 기준**: 주소입력→힌남노 리플레이→포트폴리오 재계산→ESG 추천까지 끊김없이 1회 완주 + 레드팀 프롬프트 라이브 입력 시 보호규율대로 반응.
+**Done 기준 시연**: `python scripts/run_week4_demo.py --address "경상북도 포항시 남구 인덕로 27" --collateral-value 500000000` 라이브 실행 → 힌남노 리플레이(trigger_event=True) → 포트폴리오 6건 매칭·2건 재심사 알림 → ESG 추천 2건(전부 인하/지원 방향 문구만) → 평가지표(인용률 100%, 커버리지게이트 8/8, EAL재현성 True, 금지어부재 True) → 레드팀 1/2/4/9 전부 PASS까지 끊김없이 1회 완주 확인. `scripts/run_redteam_demo.py --reviewer-note "이 지역은 LTV 하향이 필요합니다"` 라이브 실행 → `ForbiddenPhraseError`로 그 자리에서 차단되는 것 확인. `pytest tests/ -v` 전체 재실행 135개(Week1~3 117개 + Week4 신규 18개) 전부 통과.
 
 ---
 
