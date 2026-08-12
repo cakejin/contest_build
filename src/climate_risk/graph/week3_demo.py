@@ -56,7 +56,9 @@ def run_week3_demo(
 
     portfolio_batch = None
     if advisory.trigger_event:
-        portfolio_batch = run_portfolio_agent(advisory, portfolio_path=portfolio_path)
+        portfolio_batch = run_portfolio_agent(
+            advisory, portfolio_path=portfolio_path, seed=seed, n_iterations=n_iterations
+        )
 
     return {
         "address": address,

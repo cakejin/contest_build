@@ -87,7 +87,13 @@ def run_memo_agent(
     all_rejected = gate_result.rejected + forbidden_rejected
 
     total = len(raw_sections)
-    failure_rate = len(all_rejected) / total if total else 0.0
+    if total == 0:
+        # 빈 sections는 문장이 하나도 없으므로 반려율로 판단할 수 없다 —
+        # "0/0 = 0.0"으로 계산하면 인용 실패율이 0%로 위장돼 폴백을 우회하므로
+        # 무조건 폴백으로 취급한다(HANDOVER §4.2 "절대 축소 금지" 게이트).
+        return _fallback_output(flood, building, scenario)
+
+    failure_rate = len(all_rejected) / total
 
     if failure_rate > CITATION_FAILURE_FALLBACK_THRESHOLD:
         return _fallback_output(flood, building, scenario)

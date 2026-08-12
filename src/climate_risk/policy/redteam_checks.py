@@ -17,10 +17,17 @@ import inspect
 
 from climate_risk.agents.scenario_agent import run_scenario_agent
 from climate_risk.evaluation.metrics import coverage_gate_metric
+from climate_risk.gis.golden_points import NAECHEON_POINTS
 from climate_risk.policy.forbidden_phrases import scan_forbidden_phrases
 from climate_risk.portfolio.alerts import AlertQueueEntry, build_alert_queue
 from climate_risk.portfolio.recalc import PortfolioRecalcResult
 from climate_risk.portfolio.schema import PortfolioRecord
+
+# 냉천 중류(포항직업전문학교) 골든 좌표 — gis/golden_points.py가 단일 소스,
+# 여기서 별도 리터럴로 재입력하면 좌표 정정 시 조용히 어긋난다.
+_, _NAECHEON_MID_LAT, _NAECHEON_MID_LON, _, _ = next(
+    p for p in NAECHEON_POINTS if "포항직업전문학교" in p[0]
+)
 
 _MONEY_FIELD_MARKERS = ("ltv", "rate", "interest")
 
@@ -47,8 +54,8 @@ def check_scenario1_no_writeback() -> dict:
         ltv=50.0,
         score_before=40.0,
         eal_before=1_000_000.0,
-        lat=35.98768,
-        lon=129.39979,
+        lat=_NAECHEON_MID_LAT,
+        lon=_NAECHEON_MID_LON,
         region_code="47111",
         geocode_confidence="OK",
         geocoded_at="2026-08-11T00:00:00+00:00",

@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+from climate_risk.gis.coverage import KNOWN_UNCERTAIN_POINTS
 from climate_risk.gis.query import TIER_FAR, TIER_INNER, TIER_NEAR
 
 # (label, lat, lon, expected in_polygon, expected tier)
@@ -23,10 +24,21 @@ NAECHEON_POINTS: list[tuple[str, float, float, bool, str]] = [
     ("냉천교(냉천 하류·청림동)", 35.99347, 129.40130, False, TIER_NEAR),
 ]
 
+
+def _uncertain_latlon(keyword: str) -> tuple[float, float]:
+    """KNOWN_UNCERTAIN_POINTS(gis/coverage.py)에서 좌표를 그대로 가져온다 — 신천
+    판정보류 4지점 좌표가 이 파일과 coverage.py에 각자 리터럴로 따로 있으면 한쪽만
+    PM 정정을 받는 드리프트가 재발한다(DEV_LOG.md 2026-08-09 전례, 모듈 docstring 참조)."""
+    matches = [p for p in KNOWN_UNCERTAIN_POINTS if keyword in p.label]
+    if len(matches) != 1:
+        raise ValueError(f"KNOWN_UNCERTAIN_POINTS에서 '{keyword}' 라벨을 유일하게 찾지 못함: {matches}")
+    return matches[0].lat, matches[0].lon
+
+
 SINCHEON_POINTS: list[tuple[str, float, float, bool, str]] = [
     ("신천대로(봉덕동·남구, 확정)", 35.833993, 128.605565, True, TIER_INNER),
-    ("대봉교(중구·남구 경계, 판정보류)", 35.854937, 128.606197, False, TIER_NEAR),
-    ("수성교(수성동, 판정보류)", 35.861410, 128.608928, False, TIER_NEAR),
-    ("신천동(신천역 인근, 판정보류)", 35.874481, 128.616722, False, TIER_FAR),
-    ("침산교(신천-금호강 합류부, 판정보류)", 35.900975, 128.592748, False, TIER_NEAR),
+    ("대봉교(중구·남구 경계, 판정보류)", *_uncertain_latlon("대봉교"), False, TIER_NEAR),
+    ("수성교(수성동, 판정보류)", *_uncertain_latlon("수성교"), False, TIER_NEAR),
+    ("신천동(신천역 인근, 판정보류)", *_uncertain_latlon("신천동"), False, TIER_FAR),
+    ("침산교(신천-금호강 합류부, 판정보류)", *_uncertain_latlon("침산교"), False, TIER_NEAR),
 ]

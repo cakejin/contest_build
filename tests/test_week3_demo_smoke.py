@@ -70,9 +70,10 @@ def _fake_scenario(flood, building, collateral_value, seed, n_iterations):
     return ScenarioAgentOutput(eal=eal, source_id=f"scenario:mc:seed={seed}")
 
 
-def _fake_portfolio_agent(advisory, portfolio_path=None):
+def _fake_portfolio_agent(advisory, portfolio_path=None, seed=None, n_iterations=None):
     from climate_risk.agents.portfolio_agent import PortfolioBatchResult
 
+    _fake_portfolio_agent.calls.append({"seed": seed, "n_iterations": n_iterations})
     return PortfolioBatchResult(
         region_code=advisory.region_code,
         total_records=0,
@@ -83,6 +84,9 @@ def _fake_portfolio_agent(advisory, portfolio_path=None):
         alerts=[],
         disclosure="test",
     )
+
+
+_fake_portfolio_agent.calls = []
 
 
 def _patch_common(monkeypatch):
@@ -107,13 +111,20 @@ def test_week3_demo_returns_all_expected_top_level_keys(monkeypatch):
         },
     )
 
-    result = week3_demo.run_week3_demo("테스트주소", collateral_value=5.0e8)
+    _fake_portfolio_agent.calls.clear()
+    result = week3_demo.run_week3_demo(
+        "테스트주소", collateral_value=5.0e8, seed=999, n_iterations=1234
+    )
 
     for key in ("address", "geocoded", "advisory", "flood", "building", "scenario", "memo", "portfolio_batch", "coverage_label"):
         assert key in result, key
 
     assert result["advisory"]["trigger_event"] is True  # 실제 힌남노 큐레이션 데이터 사용
     assert result["portfolio_batch"] is not None  # trigger_event=True이므로 배치가 실행됨
+
+    # 회귀 방지: 사용자가 지정한 --seed/--n-iterations가 포트폴리오 배치 재계산에도
+    # 전달돼야 한다(단일 담보 시나리오에만 반영되고 배치는 기본값으로 도는 버그가 있었다).
+    assert _fake_portfolio_agent.calls == [{"seed": 999, "n_iterations": 1234}]
 
 
 def test_week3_demo_short_circuits_on_geocode_failure(monkeypatch):

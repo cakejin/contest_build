@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -75,8 +76,18 @@ def build_alert_queue(
     return entries
 
 
+def _json_safe_entry(entry: AlertQueueEntry) -> dict:
+    """EAL_change_pct가 무한대(before=0 -> after>0)면 json.dumps가 표준이 아닌
+    `Infinity` 토큰을 그대로 써버려 로그가 유효한 JSON이 아니게 된다 — 문자열로 치환한다."""
+    data = dataclasses.asdict(entry)
+    pct = data.get("EAL_change_pct")
+    if isinstance(pct, float) and math.isinf(pct):
+        data["EAL_change_pct"] = "inf" if pct > 0 else "-inf"
+    return data
+
+
 def append_to_alert_queue_log(entries: list[AlertQueueEntry], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         for entry in entries:
-            f.write(json.dumps(dataclasses.asdict(entry), ensure_ascii=False) + "\n")
+            f.write(json.dumps(_json_safe_entry(entry), ensure_ascii=False) + "\n")

@@ -27,11 +27,15 @@ def _now_iso() -> str:
 
 
 def ensure_geocoded(records: list[PortfolioRecord]) -> list[PortfolioRecord]:
-    """이미 lat/lon이 있는 레코드는 재호출하지 않는다(idempotent) — 없는 레코드만
+    """이미 lat/lon이 있거나 이전 시도에서 FAILED로 확정된 레코드는 재호출하지
+    않는다(idempotent) — 아직 시도하지 않은(geocode_confidence=None) 레코드만
     지오코딩 + region_code 역조회를 시도한다."""
     result: list[PortfolioRecord] = []
     for record in records:
         if record.lat is not None and record.lon is not None:
+            result.append(record)
+            continue
+        if record.geocode_confidence == _CONFIDENCE_FAILED:
             result.append(record)
             continue
 
