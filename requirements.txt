@@ -5,3 +5,5 @@ numpy>=2.0
 python-dotenv>=1.0
 pytest>=8.0
 langgraph>=1.2,<2.0
+fastapi>=0.141
+uvicorn[standard]>=0.52

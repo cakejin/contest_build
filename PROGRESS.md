@@ -82,6 +82,29 @@
 
 ---
 
+## Week 4 이후 보강 — 포항 외 지역 리플레이 + 라이브 특보 API (2026-08-12)
+
+HANDOVER.md §⑦ PM 항목 B6(대구·경북 리플레이 데이터셋)과 축소우선순위 항목③(라이브 특보 API 모드)을 사용자 요청으로 착수·완료. 상세 근거는 `DEV_LOG.md` 2026-08-12 항목 참조.
+
+- [x] 대구 신천(수성구) 실측 특보 리플레이 — `data/.../curated/daegu_suseong_2026/events.json`(7개 이벤트, 전부 source_url 有). 2026-07-17~18 수성구 지산동 집중호우(시간당 89mm, 전국 최초 재난성 호우 긴급재난문자, 신천동로 10시간 통제, 침수신고 100건 초과) — 객관적 키워드 검색으로 먼저 후보를 추린 뒤 선정(체리피킹 방지 방법론 준수). `tests/test_advisory_agent.py::test_replay_mode_against_real_daegu_suseong_data`로 회귀 고정.
+- [x] 기상청 라이브 특보 API 연동 (`src/climate_risk/advisory/live.py`) — `WthrWrnInfoService/getWthrWrnList`(data.go.kr) 실호출로 스펙 확정 후 구현. `stnId`(기상청 특보구역, SGG코드와 다름) 매핑 테이블 추가, 대구(stnId=143)는 실경보로 검증됨(전국 피드와 다른 목록 반환 확인). `mode="live"`가 `agents/advisory_agent.py`에 실제로 연결됨(이전엔 항상 `NotImplementedError`).
+- [x] `scripts/_demo_cli.py`에 `--mode`(replay/live)·`--timeline-path` 플래그 추가 — 포항 외 지역도 CLI로 바로 시연 가능.
+
+**시연 확인**: `run_week4_demo.py --address "대구광역시 수성구 지산동" --region-code 27260 --timeline-path .../daegu_suseong_2026/events.json` 라이브 실행 → 특보 리플레이 7건 인용 심사메모 생성, 포트폴리오 6건 매칭까지 확인(이 실행에서는 6건 전부 EAL 변화율이 임계치 20% 미만이라 알림 0건 — 포항 사례(변화율 48~49%, 알림 2건)와 대비되는 "정상적으로 알림이 안 뜨는 경우"도 함께 실증됨, 즉 특보만 있으면 무조건 알림이 뜨는 게 아니라 실제 EAL 변화가 임계치를 넘을 때만 뜬다는 것이 확인됨). `--mode live`로도 동일 주소 실행해 실시간 API 경로도 라이브 확인(현재 대구 지역 활성 특보는 침수와 무관한 풍랑·강풍주의보뿐이라 라이브 모드는 재현 가능한 예시가 아니라 "지금 시점" 부가 증거로만 사용).
+
+## Week 4 이후 보강 — 발표용 웹 데모 UI (2026-08-12)
+
+CLI(JSON 출력)만 있던 것을 발표 시연용 웹 화면으로 감쌌다. 새 판정 로직은 없음 — `graph/week3_demo.py`/`week4_demo.py`에 `on_stage` 진행상황 콜백만 추가하고(기본값 None, 기존 CLI/테스트 동작 불변), 그 위에 FastAPI+SSE 백엔드(`webapp/app.py`)와 순수 HTML/JS 프론트(`webapp/static/`)를 얹었다.
+
+- [x] 실제 단계 진행상황 스트리밍(SSE) — "예상 손실액을 계산하고 있어요" 같은 문구는 타이머로 흉내낸 게 아니라 백엔드가 그 단계를 실제로 처리 중일 때만 전송됨. SHP 최초 로딩 시엔 별도 안내 문구로 분기.
+- [x] 지역 프리셋 3종(포항 힌남노 리플레이 / 대구 수성구 리플레이 / 대구 수성구 라이브) — `/api/regions`로 노출.
+- [x] 결과 화면 — 침수 tier 뱃지, 건물취약도 표, EAL 20-bin 히스토그램(dataviz 스킬 가이드 준수, 민트 시퀀셜 램프), 근거 인용 심사메모(반려 문장 별도 표시), 특보 타임라인+포트폴리오 알림 큐+ESG 추천(특보 없으면 "생략" 정직 표시), HITL 워터마크 고정 표시.
+- [x] 색상 토큰은 `contest_research/submission/ppt원고_...md`에 이미 확정된 iM금융지주 브랜드 톤(#007F6C/#00A88F) 재사용 — 발표자료와 데모 화면 톤 일치.
+
+**검증**: `tests/test_webapp_progress_hook.py`(4개, mocked)로 훅 호출 순서 회귀 고정 + `pytest tests/ -q` 148개 전체 통과. 로컬 서버(`uvicorn webapp.app:app`) 기동 후 `/api/assess` SSE를 curl로 직접 실행해 포항 replay·대구 live 두 프리셋 모두 8단계 진행상황+최종 결과 JSON이 프론트 JS가 기대하는 필드 그대로 오는 것을 실측 확인(브라우저 확장 미설치로 시각적 확인은 사용자 몫 — 기능적으로는 실측 완료).
+
+---
+
 ## 시간 부족 시 축소 우선순위 (HANDOVER §⑦ 그대로)
 
 빼는 순서: ①신천 4개 지점 정식 재검증 → ②PostGIS 서버 인프라 → ③라이브 특보 API 모드 → ④포트폴리오 300~500건 전체(30~50건으로 축소) → ⑤safemap WMS 보조 레이어 → ⑥평가지표 9개(2개로 축소) → ⑦레드팀 9개 시나리오(4개로 축소) → ⑧한강홍수통제소 API.

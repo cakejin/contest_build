@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>담보 기후리스크 여신심사 AI — 데모</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>담보 기후리스크 여신심사 AI</h1>
+    <p>물건 단위 조기경보와 심사메모 자동화 — 공공데이터 실연동 데모</p>
+  </header>
+
+  <main>
+    <section>
+      <div class="card">
+        <h2>담보 평가</h2>
+        <form id="assess-form">
+          <label for="preset">지역 프리셋</label>
+          <select id="preset"></select>
+
+          <label for="address">담보 도로명주소</label>
+          <input id="address" type="text" required placeholder="예: 경상북도 포항시 남구 인덕로 27" />
+
+          <label for="collateral-value">담보가액(원)</label>
+          <input id="collateral-value" type="number" required value="500000000" step="1000000" />
+
+          <button type="submit" id="submit-btn">평가 실행</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>진행상황</h2>
+        <ul id="progress-list">
+          <li class="muted">평가를 실행하면 실제 처리 단계가 여기에 표시됩니다.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="result-section">
+      <div class="card" id="placeholder-card">
+        <h2>결과</h2>
+        <p class="muted">왼쪽에서 주소를 입력하고 "평가 실행"을 누르면 실제 침수판정·건물취약도·예상손실액·심사메모가 여기 표시됩니다.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

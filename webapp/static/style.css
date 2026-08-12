@@ -1,0 +1,271 @@
+/* 담보 기후리스크 여신심사 AI — 데모 화면
+   색상 토큰은 contest_research/submission/ppt원고_담보기후여신심사AI.md에 이미 확정된
+   iM금융지주 브랜드 톤을 그대로 재사용한다(다크민트/민트/잉크/뮤트) — 발표자료와
+   데모 화면의 톤을 맞춘다. */
+
+:root {
+  --color-title: #007f6c;      /* 다크 민트 */
+  --color-accent: #00a88f;     /* 민트 */
+  --color-accent-soft: #cceded; /* 밴딩 */
+  --color-ink: #192325;        /* 본문 텍스트 */
+  --color-muted: #5b6466;      /* 각주·보조 텍스트 */
+  --color-surface: #ffffff;
+  --color-surface-alt: #f2f4f4;
+  --color-border: #d0d4d5;
+  --color-warn-bg: #fdf7c9;
+  --color-warn-ink: #502e00;
+  --color-tier-inner: #c8443c;   /* 내부(고위험) */
+  --color-tier-near: #d88a2c;    /* 근접 */
+  --color-tier-far: #4a8f6a;     /* 원거리 */
+  --color-tier-oos: #8a9296;     /* OUT_OF_SCOPE */
+
+  /* EAL 히스토그램용 민트 시퀀셜 램프(연→진, 손실액 크기 순) */
+  --ramp-1: #e6f5f2;
+  --ramp-2: #b8e3dc;
+  --ramp-3: #66c2b3;
+  --ramp-4: #00a88f;
+  --ramp-5: #007f6c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Malgun Gothic", "맑은 고딕", -apple-system, sans-serif;
+  color: var(--color-ink);
+  background: var(--color-surface-alt);
+  line-height: 1.5;
+}
+
+header {
+  background: var(--color-title);
+  color: #ffffff;
+  padding: 20px 32px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #d7ede8;
+}
+
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 860px) {
+  main { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  font-size: 15px;
+  margin: 0 0 12px;
+  color: var(--color-title);
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 12px 0 4px;
+}
+
+input, select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--color-ink);
+}
+
+button {
+  margin-top: 16px;
+  width: 100%;
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: var(--color-border);
+  cursor: not-allowed;
+}
+
+button:not(:disabled):hover { background: var(--color-title); }
+
+/* 진행상황 패널 */
+#progress-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#progress-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 13px;
+  color: var(--color-muted);
+  border-bottom: 1px dashed var(--color-border);
+}
+#progress-list li:last-child { border-bottom: none; }
+
+#progress-list li .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--color-border);
+  flex: none;
+}
+#progress-list li.active { color: var(--color-ink); font-weight: 600; }
+#progress-list li.active .dot { background: var(--color-accent); animation: pulse 1s infinite ease-in-out; }
+#progress-list li.done .dot { background: var(--color-title); }
+#progress-list li.done { color: var(--color-ink); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+/* 결과 패널 */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+.badge.tier-내부 { background: var(--color-tier-inner); }
+.badge.tier-근접 { background: var(--color-tier-near); }
+.badge.tier-원거리 { background: var(--color-tier-far); }
+.badge.tier-oos { background: var(--color-tier-oos); }
+
+.kv-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+.kv-row .k { color: var(--color-muted); }
+.kv-row .v { font-weight: 600; }
+
+.factor-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.factor-table th, .factor-table td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--color-border); }
+.factor-table th { color: var(--color-muted); font-weight: 600; }
+
+/* EAL 히스토그램 */
+#eal-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 140px;
+  margin-top: 10px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 2px;
+}
+.eal-bar {
+  flex: 1;
+  max-width: 24px;
+  border-radius: 4px 4px 0 0;
+  min-height: 1px;
+  position: relative;
+}
+.eal-caption {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 심사메모 */
+.memo-section {
+  font-size: 13px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.memo-section:last-child { border-bottom: none; }
+.memo-cite {
+  display: block;
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 3px;
+}
+.memo-rejected {
+  font-size: 12px;
+  color: #8a3b1f;
+  background: #fdf0e9;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+/* 특보/포트폴리오 */
+.advisory-event { font-size: 12px; padding: 6px 0; border-bottom: 1px dashed var(--color-border); }
+.advisory-event a { color: var(--color-title); }
+
+.alert-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.alert-table th, .alert-table td { text-align: left; padding: 6px; border-bottom: 1px solid var(--color-border); }
+.alert-table th { color: var(--color-muted); }
+.pct-up { color: #b23a2e; font-weight: 700; }
+.pct-down { color: #2e7a4f; font-weight: 700; }
+
+.no-alert-note {
+  font-size: 12px;
+  color: var(--color-muted);
+  background: var(--color-surface-alt);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.action-chip {
+  display: inline-block;
+  background: var(--color-accent-soft);
+  color: var(--color-title);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  margin: 3px 4px 0 0;
+}
+
+.disclosure {
+  margin-top: 20px;
+  background: var(--color-warn-bg);
+  color: var(--color-warn-ink);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+
+.error-box {
+  background: #fdecea;
+  color: #8a1f12;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.hidden { display: none !important; }
+
+.muted { color: var(--color-muted); font-size: 12px; }

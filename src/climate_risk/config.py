@@ -117,6 +117,33 @@ DEFAULT_EAL_ITERATIONS = 10000
 # Week3 추가 — 큐레이션·합성 데이터·감사로그 경로.
 CURATED_DATA_DIR = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "curated"
 HINNAMNO_TIMELINE_PATH = CURATED_DATA_DIR / "hinnamno_2022" / "events.json"
+
+# Week4 이후 보강 — 포항(냉천) 외 지역(대구 신천) 실측 특보 리플레이 예시.
+# region_code=27260(대구 수성구), HANDOVER.md §⑦ PM 항목 B6 해결(DEV_LOG.md 참조).
+DAEGU_SUSEONG_2026_TIMELINE_PATH = CURATED_DATA_DIR / "daegu_suseong_2026" / "events.json"
+
+# Week4 이후 보강 — 기상청 라이브 특보 API(advisory/live.py). 2026-08-12 실호출로 엔드포인트·
+# 파라미터 확정(DEV_LOG.md 참조): data.go.kr 호스팅, DATA_GO_KR_API_KEY 사용(KMA_API_HUB_KEY
+# 아님 — 별도 포털/키), serviceKey는 이미 percent-encoding된 값이므로 재인코딩 금지
+# (building/brhub.py의 이중 인코딩 함정과 동일 주의). 과거 6일 초과 조회는 구조적으로 불가능
+# (resultCode 99, contest_research 실측 확인) — 라이브 모드는 "지금 시점" 조회 전용이다.
+KMA_WTHR_WRN_BASE_URL = "https://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnList"
+
+# region_code(SGG 5자리) -> (기상청 특보구역/관서 stnId, 실경보로 검증됐는지).
+# stnId=143(대구)은 2026-08-12 실호출로 전국(108) 피드와 다른 목록을 반환함을 확인해
+# "대구 지역 필터로 실제 작동한다"까지 검증됨 — 단 대구 5개구(남구·중구·수성구·동구·북구)를
+# API 자체가 더 세분화하지 못해 전부 같은 stnId로 묶인다(신천이 여러 구 경계를 흐르므로 이미
+# 예견된 제약, DEV_LOG.md 2026-08-12 참조). 포항(47111)의 stnId=138은 표준 기상청 관측지점
+# 번호(포항)를 따른 추정값 — 확인 시점에 활성 특보가 없어 "매핑이 맞다"를 실측으로 증명하지
+# 못했다(resultCode 03=NO_DATA는 "특보 없음"과 "잘못된 stnId"를 구분해주지 않는다).
+REGION_CODE_TO_KMA_STN_ID: dict[str, tuple[str, bool]] = {
+    "47111": ("138", False),  # 포항 남구 — 미검증(best-effort)
+    "27200": ("143", True),  # 대구 남구
+    "27110": ("143", True),  # 대구 중구
+    "27260": ("143", True),  # 대구 수성구
+    "27140": ("143", True),  # 대구 동구
+    "27230": ("143", True),  # 대구 북구
+}
 PORTFOLIO_DATA_PATH = CURATED_DATA_DIR / "portfolio" / "synthetic_portfolio.json"
 AUDIT_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "reviewer_ack_log.jsonl"
 ALERT_QUEUE_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "alert_queue_log.jsonl"

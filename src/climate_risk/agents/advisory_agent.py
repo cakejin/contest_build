@@ -14,7 +14,12 @@ from datetime import datetime
 from pathlib import Path
 
 from climate_risk.advisory.curated_loader import load_curated_timeline
-from climate_risk.advisory.live import run_live_query
+from climate_risk.advisory.live import (
+    STATUS_OK as _LIVE_STATUS_OK,
+    STATUS_UNKNOWN_REGION as _LIVE_STATUS_UNKNOWN_REGION,
+    STATUS_UPSTREAM_ERROR as _LIVE_STATUS_UPSTREAM_ERROR,
+    run_live_query,
+)
 from climate_risk.advisory.replay import replay_timeline
 from climate_risk.advisory.schema import AdvisoryEvent
 from climate_risk.config import HINNAMNO_TIMELINE_PATH
@@ -23,7 +28,7 @@ _TRIGGER_EVENT_TYPES = {"특보", "재난문자"}
 
 STATUS_OK = "OK"
 STATUS_NO_CURATED_DATA_FOR_REGION = "NO_CURATED_DATA_FOR_REGION"
-STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
+STATUS_LIVE_UPSTREAM_ERROR = "LIVE_UPSTREAM_ERROR"
 
 
 @dataclass(frozen=True)
@@ -52,8 +57,40 @@ def run_advisory_agent(
     as_of: datetime | None = None,
 ) -> AdvisoryAgentOutput:
     if mode == "live":
-        run_live_query()  # 항상 NotImplementedError — 호출자가 캐치하지 않으면 그대로 전파
-        raise AssertionError("run_live_query()는 항상 예외를 던져야 합니다")  # pragma: no cover
+        live_result = run_live_query(region_code)
+
+        if live_result.status == _LIVE_STATUS_UNKNOWN_REGION:
+            return AdvisoryAgentOutput(
+                active_warnings=[],
+                trigger_event=False,
+                mode=mode,
+                timeline=[],
+                region_code=region_code,
+                status=STATUS_NO_CURATED_DATA_FOR_REGION,
+                source_id="advisory:live:unmapped_region",
+            )
+        if live_result.status == _LIVE_STATUS_UPSTREAM_ERROR:
+            return AdvisoryAgentOutput(
+                active_warnings=[],
+                trigger_event=False,
+                mode=mode,
+                timeline=[],
+                region_code=region_code,
+                status=STATUS_LIVE_UPSTREAM_ERROR,
+                source_id="advisory:live:upstream_error",
+            )
+
+        assert live_result.status == _LIVE_STATUS_OK
+        trigger_event = any(event.event_type in _TRIGGER_EVENT_TYPES for event in live_result.events)
+        return AdvisoryAgentOutput(
+            active_warnings=[_to_active_warning(e) for e in live_result.events],
+            trigger_event=trigger_event,
+            mode=mode,
+            timeline=live_result.events,
+            region_code=region_code,
+            status=STATUS_OK,
+            source_id=f"advisory:live:kma:stnId={live_result.stn_id}",
+        )
 
     if mode != "replay":
         raise ValueError(f"알 수 없는 mode={mode!r} — 'replay' 또는 'live'만 지원합니다")

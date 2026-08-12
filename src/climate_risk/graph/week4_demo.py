@@ -26,7 +26,7 @@ from climate_risk.evaluation.metrics import (
     forbidden_phrase_absence_metric,
 )
 from climate_risk.gis.query import FloodRiskResult
-from climate_risk.graph.week3_demo import run_week3_demo
+from climate_risk.graph.week3_demo import OnStage, run_week3_demo
 from climate_risk.memo.schema import MemoAgentOutput, MemoSection, RejectedSentence
 from climate_risk.policy.esg_recommendations import build_esg_recommendations
 from climate_risk.policy.redteam_checks import run_all_redteam_checks
@@ -67,8 +67,10 @@ def run_week4_demo(
     region_code: str = "47111",
     portfolio_path: Path = PORTFOLIO_DATA_PATH,
     timeline_path: Path = HINNAMNO_TIMELINE_PATH,
+    mode: str = "replay",
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
+    on_stage: OnStage | None = None,
 ) -> dict[str, Any]:
     result = run_week3_demo(
         address=address,
@@ -76,8 +78,10 @@ def run_week4_demo(
         region_code=region_code,
         portfolio_path=portfolio_path,
         timeline_path=timeline_path,
+        mode=mode,
         seed=seed,
         n_iterations=n_iterations,
+        on_stage=on_stage,
     )
     if "error" in result:
         return result
