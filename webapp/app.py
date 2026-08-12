@@ -35,6 +35,15 @@ app = FastAPI(title="담보 기후리스크 여신심사 AI — 데모")
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 
+
+@app.middleware("http")
+async def _no_cache_static(request, call_next):
+    """정적 파일(index.html/app.js/style.css)에 브라우저 캐시를 걸지 않는다 — 데모 화면을
+    반복 수정하며 확인하는 로컬 개발 서버라, 캐시 때문에 "고쳤는데 그대로다"가 나오면 안 된다."""
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
 # 프론트 드롭다운용 프리셋 — 전부 이미 실측 검증된 조합(PROGRESS.md "Week4 이후 보강" 참조).
 _REGION_PRESETS: list[dict[str, Any]] = [
     {

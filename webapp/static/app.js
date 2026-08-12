@@ -3,6 +3,22 @@
    진입할 때 보낸 메시지를 그대로 순서대로 쌓아 보여준다(포트폴리오 재계산 단계는
    특보 트리거가 있을 때만 실제로 나타남 — 그래서 고정 스켈레톤을 미리 그리지 않는다). */
 
+/* 카드 헤더용 라인 아이콘(24x24, currentColor) — 섹션 성격을 한눈에 구분하기 위한 시각 보조.
+   판정·수치 자체에는 영향 없음(순수 장식). */
+const ICONS = {
+  result: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/>',
+  flood: '<path d="M2 8c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/><path d="M2 14c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/><path d="M2 20c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/>',
+  building: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/>',
+  chart: '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M2 20h20"/>',
+  memo: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/>',
+  bell: '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  portfolio: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+};
+
+function cardHead(iconKey, title) {
+  return `<div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[iconKey]}</svg></span><h2>${title}</h2></div>`;
+}
+
 const progressList = document.getElementById("progress-list");
 const presetSelect = document.getElementById("preset");
 const form = document.getElementById("assess-form");
@@ -69,7 +85,7 @@ form.addEventListener("submit", (e) => {
   submitBtn.disabled = true;
   submitBtn.textContent = "평가 실행 중...";
   resetProgress();
-  resultSection.innerHTML = '<div class="card"><h2>결과</h2><p class="muted">진행 중이에요 — 왼쪽 진행상황 패널을 확인하세요.</p></div>';
+  resultSection.innerHTML = `<div class="card">${cardHead("result", "결과")}<p class="muted">진행 중이에요 — 왼쪽 진행상황 패널을 확인하세요.</p></div>`;
 
   const source = new EventSource(`/api/assess?${params.toString()}`);
 
@@ -89,7 +105,7 @@ form.addEventListener("submit", (e) => {
 
   source.onerror = () => {
     if (submitBtn.disabled) {
-      resultSection.innerHTML = `<div class="card"><h2>결과</h2><div class="error-box">서버 연결이 끊겼어요. 다시 시도해 주세요.</div></div>`;
+      resultSection.innerHTML = `<div class="card">${cardHead("result", "결과")}<div class="error-box">서버 연결이 끊겼어요. 다시 시도해 주세요.</div></div>`;
     }
     submitBtn.disabled = false;
     submitBtn.textContent = "평가 실행";
@@ -112,20 +128,81 @@ function fmtPct(n) {
   return n >= 0 ? `<span class="pct-up">+${pct}</span>` : `<span class="pct-down">${pct}</span>`;
 }
 
-function renderEalChart(bins) {
-  if (!bins || bins.length === 0) return '<p class="muted">분포를 산출하지 못했어요(입력 데이터 불충분).</p>';
+/* EAL 히스토그램 — 세 가지 보기를 토글로 비교할 수 있게 한다(2026-08-12, 사용자 피드백:
+   "0원 구간이 99%대라 나머지가 안 보인다"). 세 보기 전부 같은 원본 20-bin 데이터를 다르게
+   변형할 뿐 — 새 계산은 없다. 어느 보기가 나은지는 실제로 띄워보고 같이 판단한다. */
+let _currentEalBins = null;
+let _ealChartMode = "severity"; // "linear" | "log" | "severity"
+
+const EAL_RAMPS = ["var(--ramp-1)", "var(--ramp-2)", "var(--ramp-3)", "var(--ramp-4)", "var(--ramp-5)"];
+
+function _ealBarDiv(bin, heightPct, lastBinEnd) {
+  const rampIdx = Math.min(4, Math.floor((bin.bin_end / lastBinEnd) * 5));
+  return `<div class="eal-bar" style="height:${heightPct}%; background:${EAL_RAMPS[rampIdx]}" title="${fmtWon(bin.bin_start)} ~ ${fmtWon(bin.bin_end)}: ${bin.count}회"></div>`;
+}
+
+function _renderEalBars(bins, mode) {
+  const lastBinEnd = bins[bins.length - 1].bin_end;
+
+  if (mode === "severity") {
+    const tail = bins.slice(1); // 0원 구간(사상 미발생 대다수 포함) 제외
+    const maxCount = Math.max(0, ...tail.map((b) => b.count));
+    return tail.map((b) => _ealBarDiv(b, maxCount > 0 ? (b.count / maxCount) * 100 : 0, lastBinEnd)).join("");
+  }
+
+  if (mode === "log") {
+    const maxLog = Math.max(...bins.map((b) => Math.log10(b.count + 1)));
+    return bins.map((b) => _ealBarDiv(b, maxLog > 0 ? (Math.log10(b.count + 1) / maxLog) * 100 : 0, lastBinEnd)).join("");
+  }
+
+  // linear — 원본 그대로, 일부러 보정하지 않는다(왜 읽기 힘든지 그대로 보여주는 게 목적)
   const maxCount = Math.max(...bins.map((b) => b.count));
-  const ramps = ["var(--ramp-1)", "var(--ramp-2)", "var(--ramp-3)", "var(--ramp-4)", "var(--ramp-5)"];
-  const bars = bins
-    .map((b) => {
-      const heightPct = maxCount > 0 ? Math.max((b.count / maxCount) * 100, b.count > 0 ? 3 : 0) : 0;
-      const rampIdx = Math.min(4, Math.floor((b.bin_end / bins[bins.length - 1].bin_end) * 5));
-      return `<div class="eal-bar" style="height:${heightPct}%; background:${ramps[rampIdx]}" title="${fmtWon(b.bin_start)} ~ ${fmtWon(b.bin_end)}: ${b.count}회"></div>`;
-    })
-    .join("");
+  return bins.map((b) => _ealBarDiv(b, maxCount > 0 ? (b.count / maxCount) * 100 : 0, lastBinEnd)).join("");
+}
+
+function _ealCaption(bins, mode) {
+  const total = bins.reduce((sum, b) => sum + b.count, 0);
+  const noLoss = bins[0].count;
+  const noLossPct = total > 0 ? ((noLoss / total) * 100).toFixed(1) : "0.0";
+
+  if (mode === "severity") {
+    return `<p class="muted">${noLoss.toLocaleString()}회(${noLossPct}%)는 손실 없음(0원 구간, 표에서 제외) — 아래는 <strong>손실이 발생한 ${(total - noLoss).toLocaleString()}회만</strong>의 분포입니다.</p>`;
+  }
+  if (mode === "log") {
+    return `<p class="muted">⚠ 로그 스케일 — 막대 높이가 실제 발생 비율에 비례하지 않습니다(0원 구간이 ${noLossPct}%라 압축해서 표시). 정확한 비율은 막대에 마우스를 올려 확인하세요.</p>`;
+  }
+  return `<p class="muted">0원 구간이 전체의 ${noLossPct}%(${noLoss.toLocaleString()}회)를 차지해 나머지 구간이 잘 안 보일 수 있어요.</p>`;
+}
+
+function _renderEalChartBody() {
+  const bins = _currentEalBins;
+  if (!bins || bins.length === 0) return '<p class="muted">분포를 산출하지 못했어요(입력 데이터 불충분).</p>';
+  const rangeStart = _ealChartMode === "severity" ? bins[1]?.bin_start ?? 0 : 0;
   return `
-    <div id="eal-chart">${bars}</div>
-    <div class="eal-caption"><span>${fmtWon(0)}</span><span>${fmtWon(bins[bins.length - 1].bin_end)}</span></div>
+    <div id="eal-chart">${_renderEalBars(bins, _ealChartMode)}</div>
+    <div class="eal-caption"><span>${fmtWon(rangeStart)}</span><span>${fmtWon(bins[bins.length - 1].bin_end)}</span></div>
+    ${_ealCaption(bins, _ealChartMode)}
+  `;
+}
+
+function setEalMode(mode) {
+  _ealChartMode = mode;
+  document.querySelectorAll("#eal-mode-toggle button").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+  document.getElementById("eal-chart-body").innerHTML = _renderEalChartBody();
+}
+
+function renderEalChart(bins) {
+  _currentEalBins = bins && bins.length ? bins : null;
+  if (!_currentEalBins) return '<p class="muted">분포를 산출하지 못했어요(입력 데이터 불충분).</p>';
+  return `
+    <div class="segmented" id="eal-mode-toggle">
+      <button type="button" data-mode="severity" class="active" onclick="setEalMode('severity')">손실 발생 구간만</button>
+      <button type="button" data-mode="log" onclick="setEalMode('log')">전체(로그 스케일)</button>
+      <button type="button" data-mode="linear" onclick="setEalMode('linear')">전체(선형, 원본)</button>
+    </div>
+    <div id="eal-chart-body">${_renderEalChartBody()}</div>
   `;
 }
 
@@ -189,7 +266,7 @@ function renderPortfolio(portfolioBatch, esgRecs) {
 
 function renderResult(data) {
   if (data.error) {
-    resultSection.innerHTML = `<div class="card"><h2>결과</h2><div class="error-box">${escapeHtml(data.error)}</div></div>`;
+    resultSection.innerHTML = `<div class="card">${cardHead("result", "결과")}<div class="error-box">${escapeHtml(data.error)}</div></div>`;
     return;
   }
 
@@ -203,7 +280,7 @@ function renderResult(data) {
 
   resultSection.innerHTML = `
     <div class="card">
-      <h2>침수 위험 판정</h2>
+      ${cardHead("flood", "침수 위험 판정")}
       <span class="badge ${badgeClass}">${escapeHtml(tierLabel || "판정")}</span>
       <div class="kv-row"><span class="k">하천</span><span class="v">${flood.river_name || "—"}</span></div>
       <div class="kv-row"><span class="k">폴리곤까지 거리</span><span class="v">${flood.distance_to_polygon_m ?? "—"} m</span></div>
@@ -211,14 +288,14 @@ function renderResult(data) {
     </div>
 
     <div class="card">
-      <h2>건물취약도</h2>
+      ${cardHead("building", "건물취약도")}
       <div class="kv-row"><span class="k">점수</span><span class="v">${data.building.vulnerability_score ?? "—"} / 100</span></div>
       <div class="kv-row"><span class="k">상태</span><span class="v">${data.building.status}</span></div>
       ${factorRows ? `<table class="factor-table"><thead><tr><th>항목</th><th>원값</th><th>정규화점수</th><th>가중치</th></tr></thead><tbody>${factorRows}</tbody></table>` : ""}
     </div>
 
     <div class="card">
-      <h2>예상 손실액(EAL) 분포</h2>
+      ${cardHead("chart", "예상 손실액(EAL) 분포")}
       <div class="kv-row"><span class="k">평균 EAL</span><span class="v">${fmtWon(data.scenario.eal.EAL_mean)}</span></div>
       <div class="kv-row"><span class="k">p95 / p99</span><span class="v">${fmtWon(data.scenario.eal.EAL_p95)} / ${fmtWon(data.scenario.eal.EAL_p99)}</span></div>
       ${renderEalChart(data.scenario.eal.distribution_histogram_bins)}
@@ -226,17 +303,17 @@ function renderResult(data) {
     </div>
 
     <div class="card">
-      <h2>근거 인용 심사메모</h2>
+      ${cardHead("memo", "근거 인용 심사메모")}
       ${renderMemo(data.memo)}
     </div>
 
     <div class="card">
-      <h2>기상특보 이력</h2>
+      ${cardHead("bell", "기상특보 이력")}
       ${renderAdvisory(data.advisory)}
     </div>
 
     <div class="card">
-      <h2>포트폴리오 재심사 알림 · ESG 추천</h2>
+      ${cardHead("portfolio", "포트폴리오 재심사 알림 · ESG 추천")}
       ${renderPortfolio(data.portfolio_batch, data.esg_recommendations)}
     </div>
 

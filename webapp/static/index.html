@@ -7,15 +7,34 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="utility-bar">
+    <span>데이터 출처: 기상청 특보 API · V-World · 건축HUB · 국토부 홍수위험지도</span>
+  </div>
   <header>
-    <h1>담보 기후리스크 여신심사 AI</h1>
-    <p>물건 단위 조기경보와 심사메모 자동화 — 공공데이터 실연동 데모</p>
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    </div>
+    <div>
+      <h1>담보 기후리스크 여신심사 AI</h1>
+      <p>물건 단위 조기경보와 심사메모 자동화 — 공공데이터 실연동 데모</p>
+    </div>
   </header>
 
   <main>
     <section>
       <div class="card">
-        <h2>담보 평가</h2>
+        <div class="card-head">
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 21h4l11-11-4-4L4 17v4z" />
+              <path d="M14 6l4 4" />
+            </svg>
+          </span>
+          <h2>담보 평가</h2>
+        </div>
         <form id="assess-form">
           <label for="preset">지역 프리셋</label>
           <select id="preset"></select>
@@ -31,7 +50,15 @@
       </div>
 
       <div class="card">
-        <h2>진행상황</h2>
+        <div class="card-head">
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 6h13M8 12h13M8 18h13" />
+              <path d="M3 6h.01M3 12h.01M3 18h.01" />
+            </svg>
+          </span>
+          <h2>진행상황</h2>
+        </div>
         <ul id="progress-list">
           <li class="muted">평가를 실행하면 실제 처리 단계가 여기에 표시됩니다.</li>
         </ul>
@@ -40,7 +67,15 @@
 
     <section id="result-section">
       <div class="card" id="placeholder-card">
-        <h2>결과</h2>
+        <div class="card-head">
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2h9l5 5v15H6z" />
+              <path d="M14 2v6h6" />
+            </svg>
+          </span>
+          <h2>결과</h2>
+        </div>
         <p class="muted">왼쪽에서 주소를 입력하고 "평가 실행"을 누르면 실제 침수판정·건물취약도·예상손실액·심사메모가 여기 표시됩니다.</p>
       </div>
     </section>
