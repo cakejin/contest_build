@@ -11,6 +11,8 @@ function App() {
   const [presetIndex, setPresetIndex] = useState(0)
   const [address, setAddress] = useState('')
   const [collateralValue, setCollateralValue] = useState('500000000')
+  const [floorType, setFloorType] = useState('')
+  const [floorNo, setFloorNo] = useState('')
   const [progressItems, setProgressItems] = useState<ProgressItem[]>([])
   const [result, setResult] = useState<AssessResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -47,6 +49,8 @@ function App() {
         regionCode: preset?.region_code || '47111',
         mode: preset?.mode || 'replay',
         timelinePath: preset?.timeline_path,
+        floorType: floorType || null,
+        floorNo: floorType ? floorNo || null : null,
       },
       {
         onProgress: (payload) => {
@@ -78,10 +82,14 @@ function App() {
             presetIndex={presetIndex}
             address={address}
             collateralValue={collateralValue}
+            floorType={floorType}
+            floorNo={floorNo}
             submitting={loading}
             onPresetChange={handlePresetChange}
             onAddressChange={setAddress}
             onCollateralValueChange={setCollateralValue}
+            onFloorTypeChange={setFloorType}
+            onFloorNoChange={setFloorNo}
             onSubmit={handleSubmit}
           />
           <ProgressList items={progressItems} />

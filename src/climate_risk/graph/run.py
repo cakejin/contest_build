@@ -19,6 +19,7 @@ def run_pipeline(
     collateral_value: float,
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
+    target_floor: dict | None = None,
 ) -> dict[str, Any]:
     geocoded = geocode_road_address(address)
     if geocoded is None:
@@ -32,6 +33,7 @@ def run_pipeline(
             "collateral_value": collateral_value,
             "seed": seed,
             "n_iterations": n_iterations,
+            "target_floor": target_floor,
             "geocoded": geocoded,
         }
     )

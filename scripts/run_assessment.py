@@ -37,6 +37,14 @@ def main() -> None:
     parser.add_argument(
         "--n-iterations", type=int, default=DEFAULT_EAL_ITERATIONS, help="몬테카를로 반복 횟수"
     )
+    parser.add_argument(
+        "--floor-type", choices=["지상", "지하"], default=None,
+        help="HANDOVER §⑧ 층별 리스크 차등화(선택) — 미입력 시 건물 전체 스코어링으로 폴백",
+    )
+    parser.add_argument(
+        "--floor-no", type=int, default=None,
+        help="담보 층수(지상 1층=바닥 기준). --floor-type과 함께 지정해야 반영됨",
+    )
     args = parser.parse_args()
 
     print(
@@ -45,11 +53,16 @@ def main() -> None:
         file=sys.stderr,
     )
 
+    target_floor = None
+    if args.floor_type is not None or args.floor_no is not None:
+        target_floor = {"floor_type": args.floor_type, "floor_no": args.floor_no}
+
     result = run_pipeline(
         address=args.address,
         collateral_value=args.collateral_value,
         seed=args.seed,
         n_iterations=args.n_iterations,
+        target_floor=target_floor,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 

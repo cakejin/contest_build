@@ -124,3 +124,18 @@ HANDOVER.md의 가정·설계가 실제 구현 중 다르게 확인되면 여기
 **이번 패스에서 의도적으로 안 한 것(다음 단계 후보)**: `graph/pipeline.py`(LangGraph)의 `building_node`는 현재 `flood_node`와 완전 병렬(fan-out)인데, `floor_exposure` 계산은 flood 결과가 있어야 해서 이 기능을 실제로 쓰려면 두 노드를 순차 실행하거나 그래프를 조건부로 바꿔야 한다 — 이번엔 계량 코어(`building_agent`를 직접 `flood=`·`target_floor=` 인자로 호출하는 경로)만 완성했고, `graph/pipeline.py`·`week3_demo.py`·CLI 스크립트·웹 데모 UI에 실제 층수 입력 폼을 연결하는 작업은 하지 않았다 — 급하게 얹으면 지금 통과 중인 그래프 fan-out 구조·테스트를 깨뜨릴 위험이 있어 별도 작업으로 분리하는 게 안전하다고 판단.
 
 **영향**: PM은 이 계량 코어를 실제 사용자 입력 경로(웹 폼 "층수 입력" 필드 등)까지 연결할지, 아니면 §⑧을 "계량 코어는 준비됨, UI 연동은 로드맵"으로 발표 자료에 반영할지 판단 필요. 신규 테스트(`test_floor_exposure.py`·`test_scenario_agent.py` + `test_building_agent_resolution.py` 추가분) 포함 `pytest tests/ -q` 전체 재확인 필요(실행 중).
+
+## 2026-08-18 — §⑧ 그래프/CLI/웹 UI 연동 완료 — `graph/pipeline.py` fan-out을 순차 실행으로 변경
+
+**계획(HANDOVER.md 기준)**: §4.1 아키텍처 다이어그램은 홍수·특보·건물취약도 3에이전트 "병렬 fan-out"을 명시한다(`graph/pipeline.py`는 그중 홍수·건물 2개를 병렬로 구현해둔 상태였음). 같은 날 앞선 항목("계량 코어 구현")은 이 병렬 구조 때문에 floor_exposure 연동을 "두 노드를 순차 실행하거나 그래프를 조건부로 바꿔야 한다"며 다음 단계로 이월해뒀다.
+
+**실제**: 두 옵션(순차화 vs LangGraph 조건부 라우팅) 중 순차화를 채택해 `graph/pipeline.py`의 `flood→building→scenario` 순차 엣지로 변경했다(기존 `START→flood`·`START→building` 병렬 fan-out 제거). 조건부 라우팅(`target_floor` 유무에 따라 병렬/순차 분기)도 검토했으나, DEV_LOG 2026-08-09 항목이 이미 확인한 대로 `query_flood_risk()`가 프로세스당 1회(콜드 74초) 이후로는 `lru_cache`로 0.0004초 수준이라 순차화의 상시 비용이 무시할 수준이라 판단해 더 단순한 쪽을 택했다. 이제 `target_floor` 미입력(기존 경로)이어도 flood 결과가 항상 building_agent로 전달되지만, `_compute_floor_exposure()`가 `target_floor is None`이면 즉시 `None`을 반환하므로(수정 없음, 기존 로직 그대로) 기존 결과값은 100% 동일하다 — 회귀 테스트(`test_pipeline_smoke.py`)로 확인.
+
+나머지 연동:
+- `graph/run.py`·`graph/week3_demo.py`·`graph/week4_demo.py`: `target_floor: dict | None = None` 파라미터 추가, `run_building_agent(flood=..., target_floor=...)`로 관통.
+- `scripts/_demo_cli.py`(Week3/4 CLI 공통)·`scripts/run_assessment.py`(Week2 CLI): `--floor-type {지상,지하}`·`--floor-no` 플래그 추가.
+- `webapp/app.py`: `/api/assess`에 `floor_type`/`floor_no` 쿼리 파라미터 추가 → `target_floor` dict로 조립해 `run_week4_demo`에 전달.
+- `webapp/frontend`: `AssessForm`에 층 유형·층수 입력 추가(미입력 시 기존 동작), `BuildingCard`에 층별 리스크 등급(고위험/중위험/저위험) 표시 섹션 추가. `tsc --noEmit`·`npm run build` 통과, `webapp/static/` 재생성 완료.
+- `memo/source_registry.py`: `building.floor_exposure`가 있으면 기존 `building.source_id` 레코드의 `value_repr`에 `floor_risk_tier`/`basis`/`reason`을 병기(새 source_id를 만들지 않음) — 메모 에이전트가 같은 인용 규율로 층별 리스크 문장을 생성할 수 있게 됨(HANDOVER §⑧ "메모 에이전트" 통합점 반영).
+
+**영향**: `portfolio/recalc.py`(포트폴리오 배치 재계산)는 의도적으로 그대로 뒀다 — 합성 포트폴리오 레코드에 층수 데이터가 없어 `target_floor`를 넘길 입력 자체가 없고, 미입력이므로 기존 배치 결과에 영향 없음(층수 필드를 포트폴리오 스키마에 추가하는 것은 별도 로드맵). 신규/수정 테스트 8개(`test_pipeline_smoke.py` 2개 신규+1개 이름변경, `test_week3_demo_smoke.py` 1개 신규, `test_memo_source_registry.py` 1개 신규) 포함 `pytest tests/ -q` 170개 전체 통과(800초). 커밋은 사용자 요청 대기 중.

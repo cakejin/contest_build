@@ -7,10 +7,14 @@ interface AssessFormProps {
   presetIndex: number
   address: string
   collateralValue: string
+  floorType: string
+  floorNo: string
   submitting: boolean
   onPresetChange: (index: number) => void
   onAddressChange: (value: string) => void
   onCollateralValueChange: (value: string) => void
+  onFloorTypeChange: (value: string) => void
+  onFloorNoChange: (value: string) => void
   onSubmit: () => void
 }
 
@@ -23,10 +27,14 @@ export function AssessForm({
   presetIndex,
   address,
   collateralValue,
+  floorType,
+  floorNo,
   submitting,
   onPresetChange,
   onAddressChange,
   onCollateralValueChange,
+  onFloorTypeChange,
+  onFloorNoChange,
   onSubmit,
 }: AssessFormProps) {
   const handleSubmit = (e: FormEvent) => {
@@ -78,6 +86,32 @@ export function AssessForm({
           value={collateralValue}
           onChange={(e) => onCollateralValueChange(e.target.value)}
         />
+
+        <label htmlFor="floor-type" className={labelClass}>
+          담보 층수(선택 — HANDOVER §⑧ 층별 리스크 차등화)
+        </label>
+        <div className="flex gap-2">
+          <select
+            id="floor-type"
+            className={inputClass}
+            value={floorType}
+            onChange={(e) => onFloorTypeChange(e.target.value)}
+          >
+            <option value="">미입력(건물 전체 스코어링)</option>
+            <option value="지상">지상</option>
+            <option value="지하">지하</option>
+          </select>
+          <input
+            id="floor-no"
+            type="number"
+            min={1}
+            placeholder="층수"
+            disabled={!floorType}
+            className={`${inputClass} max-w-[110px] disabled:bg-surface-alt disabled:cursor-not-allowed`}
+            value={floorNo}
+            onChange={(e) => onFloorNoChange(e.target.value)}
+          />
+        </div>
 
         <button
           type="submit"

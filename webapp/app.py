@@ -90,6 +90,7 @@ def _run_in_background(
     timeline_path: Path | None,
     seed: int,
     n_iterations: int,
+    target_floor: dict[str, Any] | None,
     events: "queue.Queue[str]",
 ) -> None:
     def on_stage(stage: str, message: str) -> None:
@@ -104,6 +105,7 @@ def _run_in_background(
         "seed": seed,
         "n_iterations": n_iterations,
         "on_stage": on_stage,
+        "target_floor": target_floor,
     }
     if timeline_path is not None:
         kwargs["timeline_path"] = timeline_path
@@ -126,13 +128,28 @@ def assess(
     timeline_path: str | None = Query(default=None),
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
+    # HANDOVER §⑧ 층별 리스크 차등화(선택 입력) — 둘 다 미지정이면 target_floor=None으로
+    # 기존 건물 전체 스코어링 경로와 100% 동일하게 동작한다.
+    floor_type: str | None = Query(default=None),
+    floor_no: int | None = Query(default=None),
 ) -> StreamingResponse:
     events: "queue.Queue[str]" = queue.Queue()
     resolved_timeline = Path(timeline_path) if timeline_path else None
+    target_floor = {"floor_type": floor_type, "floor_no": floor_no} if floor_type or floor_no is not None else None
 
     thread = threading.Thread(
         target=_run_in_background,
-        args=(address, collateral_value, region_code, mode, resolved_timeline, seed, n_iterations, events),
+        args=(
+            address,
+            collateral_value,
+            region_code,
+            mode,
+            resolved_timeline,
+            seed,
+            n_iterations,
+            target_floor,
+            events,
+        ),
         daemon=True,
     )
     thread.start()

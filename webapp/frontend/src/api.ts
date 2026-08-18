@@ -11,6 +11,9 @@ export interface AssessParams {
   regionCode: string
   mode: string
   timelinePath?: string | null
+  // HANDOVER §⑧ 층별 리스크 차등화(선택) — 미지정 시 건물 전체 스코어링으로 폴백.
+  floorType?: string | null
+  floorNo?: string | null
 }
 
 export interface AssessStreamHandlers {
@@ -29,6 +32,8 @@ export function startAssessStream(params: AssessParams, handlers: AssessStreamHa
     mode: params.mode,
   })
   if (params.timelinePath) query.set('timeline_path', params.timelinePath)
+  if (params.floorType) query.set('floor_type', params.floorType)
+  if (params.floorNo) query.set('floor_no', params.floorNo)
 
   const source = new EventSource(`/api/assess?${query.toString()}`)
 

@@ -48,10 +48,22 @@ def _building_records(building: BuildingAgentOutput) -> dict[str, SourceRecord]:
         f"vulnerability_score={building.vulnerability_score!r}, "
         f"status={building.status!r}, missing_fields={building.missing_fields!r}"
     )
+    label = "건축HUB 건축물대장정보 건물취약도"
+    # HANDOVER §⑧(층별 리스크 차등화) — target_floor 입력 시 building.floor_exposure에
+    # 층 단위 판정이 담긴다. 별도 source_id를 새로 만들지 않고 같은 building.source_id
+    # 아래에 병기한다 — 이 값도 결국 flood(seg_code/tier)+건축HUB 데이터에서 결정론적으로
+    # 파생된 것이라 건물취약도 레코드의 연장선이지 새 원자료가 아니다.
+    if building.floor_exposure is not None:
+        fe = building.floor_exposure
+        value_repr += (
+            f", floor_risk_tier={fe.floor_risk_tier!r}, floor_unassessed={fe.floor_unassessed!r}"
+            f", basis={fe.basis!r}, reason={fe.reason!r}"
+        )
+        label = "건축HUB 건축물대장정보 건물취약도(층별 리스크 반영)"
     return {
         building.source_id: SourceRecord(
             source_id=building.source_id,
-            label="건축HUB 건축물대장정보 건물취약도",
+            label=label,
             value_repr=value_repr,
             origin="building",
         )

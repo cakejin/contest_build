@@ -74,6 +74,7 @@ def run_week4_demo(
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
     on_stage: OnStage | None = None,
+    target_floor: dict | None = None,
 ) -> dict[str, Any]:
     result = run_week3_demo(
         address=address,
@@ -85,6 +86,7 @@ def run_week4_demo(
         seed=seed,
         n_iterations=n_iterations,
         on_stage=on_stage,
+        target_floor=target_floor,
     )
     if "error" in result:
         return result

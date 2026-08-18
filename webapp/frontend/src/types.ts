@@ -26,10 +26,23 @@ export interface ContributingFactor {
   weight_used: number
 }
 
+// HANDOVER §⑧ 층별 리스크 차등화 — target_floor 미입력 시 null(건물 전체 스코어링 폴백).
+export interface FloorExposure {
+  floor_risk_tier: 'HIGH' | 'MEDIUM' | 'LOW' | null
+  floor_unassessed: boolean
+  fallback_to_building_score: boolean
+  basis: string | null
+  reason: string | null
+  floor_elevation_m: number | null
+  depth_upper_m: number | null
+  exposure_ratio: number | null
+}
+
 export interface BuildingData {
   vulnerability_score: number | null
   status: string
   contributing_factors: ContributingFactor[]
+  floor_exposure?: FloorExposure | null
 }
 
 export interface EalBin {

@@ -53,6 +53,9 @@ def run_week3_demo(
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
     on_stage: OnStage | None = None,
+    # HANDOVER §⑧(층별 리스크 차등화) — 선택 입력. 미입력(None) 시 building_agent가
+    # floor_exposure를 계산하지 않아 기존 건물 전체 스코어링 경로와 100% 동일하다.
+    target_floor: dict | None = None,
 ) -> dict[str, Any]:
     _notify(on_stage, "advisory", "기상특보 이력을 조회하고 있어요")
     advisory = run_advisory_agent(region_code=region_code, mode=mode, timeline_path=timeline_path)
@@ -72,7 +75,9 @@ def run_week3_demo(
     flood = run_flood_agent(geocoded.lat, geocoded.lon)
 
     _notify(on_stage, "building", "건축물대장에서 건물 정보를 가져오고 있어요")
-    building = run_building_agent(lat=geocoded.lat, lon=geocoded.lon)
+    building = run_building_agent(
+        lat=geocoded.lat, lon=geocoded.lon, target_floor=target_floor, flood=flood
+    )
 
     _notify(on_stage, "scenario", "몬테카를로 시뮬레이션으로 예상 손실액을 계산하고 있어요")
     scenario = run_scenario_agent(

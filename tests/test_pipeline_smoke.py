@@ -1,8 +1,8 @@
 """graph/pipeline.py·graph/run.py 스모크 테스트 — 실제 SHP 75초 로딩·실API 호출 회피.
 
-flood_agent/building_agent를 monkeypatch해 그래프가 실제로 fan-out(둘 다 START에서
-병렬 실행 가능)/fan-in(scenario는 둘 다 끝나야 실행)하는지, 지오코딩 실패 시 그래프
-자체가 실행되지 않는지만 검증한다.
+flood_agent/building_agent를 monkeypatch해 그래프가 flood→building→scenario 순서로
+실행되는지(building이 floor_exposure 계산을 위해 flood 결과를 받는지, HANDOVER §⑧),
+지오코딩 실패 시 그래프 자체가 실행되지 않는지를 검증한다.
 """
 
 from climate_risk.agents.building_agent import BuildingAgentOutput
@@ -45,7 +45,7 @@ FAKE_BUILDING_OUTPUT = BuildingAgentOutput(
 )
 
 
-def test_graph_fans_out_and_fans_in(monkeypatch):
+def test_graph_runs_flood_before_building_and_feeds_scenario(monkeypatch):
     flood_calls = []
     building_calls = []
 
@@ -70,12 +70,41 @@ def test_graph_fans_out_and_fans_in(monkeypatch):
     )
 
     assert flood_calls == [(FAKE_GEOCODED.lat, FAKE_GEOCODED.lon)]
-    assert building_calls == [{"lat": FAKE_GEOCODED.lat, "lon": FAKE_GEOCODED.lon}]
+    # building_agent가 flood 결과를 받아야 HANDOVER §⑧ floor_exposure를 계산할 수 있다
+    # (target_floor 미입력이므로 여기선 flood만 확인 — floor_exposure 계산 자체는
+    # test_pipeline_floor_exposure_wiring이 별도로 검증).
+    assert building_calls == [
+        {"lat": FAKE_GEOCODED.lat, "lon": FAKE_GEOCODED.lon, "target_floor": None, "flood": FAKE_FLOOD_OUTPUT}
+    ]
     assert final_state["flood"] is FAKE_FLOOD_OUTPUT
     assert final_state["building"] is FAKE_BUILDING_OUTPUT
-    # scenario 노드는 flood·building 둘 다 끝난 뒤에만 실행 가능 — 결과가 있다는 것 자체가
-    # fan-in이 실제로 걸렸다는 증거(LangGraph가 두 선행 엣지를 전부 기다림).
     assert final_state["scenario"].eal.status == "OK"
+
+
+def test_graph_passes_target_floor_through_to_building_agent(monkeypatch):
+    building_calls = []
+
+    def fake_building_agent(**kwargs):
+        building_calls.append(kwargs)
+        return FAKE_BUILDING_OUTPUT
+
+    monkeypatch.setattr(pipeline_module, "run_flood_agent", lambda lat, lon, **kwargs: FAKE_FLOOD_OUTPUT)
+    monkeypatch.setattr(pipeline_module, "run_building_agent", fake_building_agent)
+
+    graph = pipeline_module.build_graph()
+    target_floor = {"floor_type": "지상", "floor_no": 2}
+    graph.invoke(
+        {
+            "address": "테스트주소",
+            "collateral_value": 5.0e8,
+            "geocoded": FAKE_GEOCODED,
+            "target_floor": target_floor,
+        }
+    )
+
+    assert building_calls == [
+        {"lat": FAKE_GEOCODED.lat, "lon": FAKE_GEOCODED.lon, "target_floor": target_floor, "flood": FAKE_FLOOD_OUTPUT}
+    ]
 
 
 def test_run_pipeline_short_circuits_on_geocode_failure(monkeypatch):
@@ -102,3 +131,20 @@ def test_run_pipeline_returns_json_ready_dict_on_success(monkeypatch):
     assert result["building"]["vulnerability_score"] == 55.0
     assert result["scenario"]["eal"]["status"] == "OK"
     assert result["scenario"]["eal"]["seed"] == 42
+
+
+def test_run_pipeline_forwards_target_floor_to_building_agent(monkeypatch):
+    building_calls = []
+
+    def fake_building_agent(**kwargs):
+        building_calls.append(kwargs)
+        return FAKE_BUILDING_OUTPUT
+
+    monkeypatch.setattr(run_module, "geocode_road_address", lambda address: FAKE_GEOCODED)
+    monkeypatch.setattr(pipeline_module, "run_flood_agent", lambda lat, lon, **kwargs: FAKE_FLOOD_OUTPUT)
+    monkeypatch.setattr(pipeline_module, "run_building_agent", fake_building_agent)
+
+    target_floor = {"floor_type": "지하", "floor_no": 1}
+    run_module.run_pipeline("테스트주소", collateral_value=5.0e8, target_floor=target_floor)
+
+    assert building_calls[0]["target_floor"] == target_floor

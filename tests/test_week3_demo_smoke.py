@@ -127,6 +127,36 @@ def test_week3_demo_returns_all_expected_top_level_keys(monkeypatch):
     assert _fake_portfolio_agent.calls == [{"seed": 999, "n_iterations": 1234}]
 
 
+def test_week3_demo_forwards_target_floor_to_building_agent(monkeypatch):
+    """HANDOVER §⑧ — target_floor가 주어지면 run_building_agent에 flood 결과와 함께
+    그대로 전달돼야 floor_exposure를 계산할 수 있다."""
+    _patch_common(monkeypatch)
+    monkeypatch.setattr(
+        memo_agent,
+        "call_claude_structured",
+        lambda prompt, schema_path, model="sonnet": {
+            "sections": [{"text": "정상 문장입니다.", "citations": ["flood:test.shp"]}]
+        },
+    )
+
+    building_calls = []
+
+    def spy_building(**kwargs):
+        building_calls.append(kwargs)
+        return _fake_building(**kwargs)
+
+    monkeypatch.setattr(week3_demo, "run_building_agent", spy_building)
+
+    target_floor = {"floor_type": "지상", "floor_no": 2}
+    result = week3_demo.run_week3_demo(
+        "테스트주소", collateral_value=5.0e8, target_floor=target_floor
+    )
+
+    assert "error" not in result
+    assert building_calls[0]["target_floor"] == target_floor
+    assert building_calls[0]["flood"] is not None
+
+
 def test_week3_demo_short_circuits_on_geocode_failure(monkeypatch):
     monkeypatch.setattr(week3_demo, "geocode_road_address", lambda address: None)
 
