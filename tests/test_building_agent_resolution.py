@@ -8,10 +8,12 @@
 
 from climate_risk.agents import building_agent as building_agent_module
 from climate_risk.agents.building_agent import run_building_agent
+from climate_risk.agents.flood_agent import FloodAgentOutput
 from climate_risk.building.address_resolver import AdminCodeMatch, resolve_from_pnu
 from climate_risk.building.brhub import BrHubError, BrTitleInfo
 from climate_risk.building.vulnerability import STATUS_FAILED, STATUS_OK
 from climate_risk.geocoding.vworld import VWorldGeocodeError
+from climate_risk.gis.query import FloodRiskResult
 
 VALID_PNU = "4711111200002220005"  # sigungu=47111 bjdong=11200 platGb=0 bun=0222 ji=0005
 
@@ -114,6 +116,55 @@ def test_fetch_network_error_returns_failed_status_not_exception(monkeypatch):
     assert result.status == STATUS_FAILED
     assert result.vulnerability_score is None
     assert result.source_id == "building:4711111200002220005"
+
+
+def test_floor_exposure_is_none_when_target_floor_not_requested(monkeypatch):
+    """§⑧ 기능(target_floor)을 안 쓴 기존 호출은 floor_exposure가 항상 None이어야
+    한다 — 하위 호환 회귀 고정."""
+    monkeypatch.setattr(building_agent_module, "resolve_admin_codes", lambda **kwargs: ADMIN)
+    monkeypatch.setattr(
+        building_agent_module,
+        "fetch_br_title_info",
+        lambda admin: BrTitleInfo(
+            strct_cd_nm="철근콘크리트구조", main_purps_cd_nm="공동주택",
+            ugrnd_flr_cnt=1, grnd_flr_cnt=5, use_apr_day="20160913", raw={},
+        ),
+    )
+
+    result = run_building_agent(address="아무주소", as_of_year=2026)
+
+    assert result.floor_exposure is None
+
+
+def test_floor_exposure_computed_when_target_floor_and_flood_given(monkeypatch):
+    """HANDOVER §⑧ — target_floor·flood를 넘기면 building_agent 출력에
+    floor_exposure가 채워져야 한다."""
+    monkeypatch.setattr(building_agent_module, "resolve_admin_codes", lambda **kwargs: ADMIN)
+    monkeypatch.setattr(
+        building_agent_module,
+        "fetch_br_title_info",
+        lambda admin: BrTitleInfo(
+            strct_cd_nm="철근콘크리트구조", main_purps_cd_nm="공동주택",
+            ugrnd_flr_cnt=1, grnd_flr_cnt=5, use_apr_day="20160913", raw={},
+        ),
+    )
+    flood = FloodAgentOutput(
+        flood=FloodRiskResult(
+            coverage="IN_SCOPE", in_polygon=True, tier="내부", distance_to_polygon_m=0.0,
+            freq_label="MAX", river_name="냉천", region_name="포항시 남구",
+            source_shp_file="test.shp", license="공공누리4유형",
+            methodology_disclaimer="test", uncertain=None, seg_code="N331",
+        ),
+        source_id="flood:test.shp", field_sources={},
+    )
+
+    result = run_building_agent(
+        address="아무주소", as_of_year=2026,
+        target_floor={"floor_type": "지하", "floor_no": 1}, flood=flood,
+    )
+
+    assert result.floor_exposure is not None
+    assert result.floor_exposure.floor_risk_tier == "HIGH"  # 지하는 무조건 HIGH
 
 
 def test_no_building_record_produces_failed_not_midpoint(monkeypatch):

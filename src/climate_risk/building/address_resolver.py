@@ -143,8 +143,10 @@ def resolve_admin_codes(
     ji = _leading_digits(parts[1]).zfill(4) if len(parts) > 1 else "0000"
 
     # "산" 지목 판정: 응답 text의 마지막 토큰 앞에 "산"이 단독으로 오면 산 지번
-    # (예: "... 인덕동 산 1-1"). platGbCd="1"(산)은 실호출로 검증하지 못했다 —
-    # 데모 대상 주소는 전부 대지라 실무 영향은 낮음(DEV_LOG.md 2026-08-11 참조).
+    # (예: "... 인덕동 산 1-1"). platGbCd 코드값(0=대지·1=산·2=블록)은 국토부 공식
+    # 활용가이드(OpenAPI활용가이드-건축HUB_건축물대장_1.0.hwp)로 2026-08-18 확인됨 —
+    # 이 텍스트 파싱 로직이 맞았음이 뒤늦게 공식 문서로 검증됐다(HANDOVER.md §⑧ 참조,
+    # 데모 대상 좌표는 전부 대지라 실무 영향은 낮았지만 로직 자체는 정당했다).
     text_parts = parcel.get("text", "").split()
     plat_gb_cd = "1" if len(text_parts) >= 2 and text_parts[-2] == "산" else "0"
 

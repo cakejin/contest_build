@@ -12,6 +12,7 @@ from climate_risk.agents.building_agent import BuildingAgentOutput
 from climate_risk.agents.flood_agent import FloodAgentOutput
 from climate_risk.config import DEFAULT_EAL_ITERATIONS, DEFAULT_EAL_SEED
 from climate_risk.scenario.eal import EALResult, run_monte_carlo_eal
+from climate_risk.scenario.floor_exposure import apply_floor_adjustment
 
 
 @dataclass(frozen=True)
@@ -27,9 +28,13 @@ def run_scenario_agent(
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
 ) -> ScenarioAgentOutput:
+    # HANDOVER §⑧ 옵션A — target_floor를 넣지 않은 기존 호출(building.floor_exposure
+    # is None)은 apply_floor_adjustment()가 building.vulnerability_score를 그대로
+    # 반환하므로 이 줄을 추가해도 기존 동작이 바뀌지 않는다.
+    vulnerability_score = apply_floor_adjustment(building.vulnerability_score, building.floor_exposure)
     eal = run_monte_carlo_eal(
         flood=flood.flood,
-        vulnerability_score=building.vulnerability_score,
+        vulnerability_score=vulnerability_score,
         collateral_value=collateral_value,
         seed=seed,
         n_iterations=n_iterations,

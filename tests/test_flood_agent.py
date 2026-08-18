@@ -26,6 +26,7 @@ def test_in_scope_result_tags_shp_source_id(regions):
         "river_name",
         "region_name",
         "methodology_disclaimer",
+        "seg_code",
     ):
         assert output.field_sources[field] == output.source_id, field
 

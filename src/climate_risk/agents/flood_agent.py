@@ -49,6 +49,7 @@ def run_flood_agent(
             "river_name",
             "region_name",
             "methodology_disclaimer",
+            "seg_code",
         )
     }
     if result.uncertain is not None:

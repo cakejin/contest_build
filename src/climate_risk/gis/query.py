@@ -46,6 +46,13 @@ class FloodRiskResult:
     license: str | None
     methodology_disclaimer: str
     uncertain: UncertainPoint | None
+    # HANDOVER.md §⑧(층별 리스크 차등화) 데이터소스 1번 — SHP의 SEG_CODE 필드 그대로.
+    # N330=0.5m미만/N331=0.5~1.0m/N332=1.0~2.0m/N333=2.0~5.0m/N334=5.0m이상.
+    # loader.py가 이미 FloodRiskZone.seg_code로 읽고 있었으나 결과에 노출만 안 됐던 것 —
+    # 2026-08-18 추가. in_polygon이 아닌(근접/원거리) tier에서는 "가장 가까운 폴리곤"의
+    # 등급일 뿐 그 좌표 자체의 등급이 아니므로, scenario/floor_exposure.py는 tier=="내부"일
+    # 때만 이 값을 신뢰한다.
+    seg_code: str | None = None
     # Week3(B3)에서 flood_history_events 큐레이션 완료 후 채워짐 — 스키마 선점.
     history_events: list = None  # type: ignore[assignment]
 
@@ -182,4 +189,5 @@ def query_flood_risk(
         license=chosen.license,
         methodology_disclaimer=METHODOLOGY_DISCLAIMER,
         uncertain=uncertain,
+        seg_code=chosen.seg_code,
     )

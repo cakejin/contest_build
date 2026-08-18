@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 from dataclasses import dataclass
 
+from climate_risk.agents.flood_agent import FloodAgentOutput
 from climate_risk.building.address_resolver import AdminCodeMatch, resolve_admin_codes
 from climate_risk.building.brhub import BrHubError, BrTitleInfo, fetch_br_title_info
 from climate_risk.building.vulnerability import (
@@ -28,6 +29,7 @@ from climate_risk.building.vulnerability import (
     compute_vulnerability,
 )
 from climate_risk.geocoding.vworld import VWorldGeocodeError
+from climate_risk.scenario.floor_exposure import FloorExposureResult, determine_floor_flood_exposure
 
 _RESOLUTION_FAILED_NOTE = "주소/좌표에서 건축물대장 조회 코드를 해석하지 못했습니다"
 _RESOLUTION_API_ERROR_NOTE = "주소/좌표 해석 중 외부 API 호출 실패 — 건물 정보 미확인"
@@ -58,6 +60,9 @@ class BuildingAgentOutput:
     missing_fields: list[str]
     status: str  # "OK" | "PARTIAL" | "FAILED"
     note: str | None
+    # HANDOVER.md §⑧(층별 리스크 차등화, 2026-08-18 추가) — target_floor 미입력 시 None
+    # (기존 건물 전체 스코어링 경로는 이 필드와 무관하게 그대로 동작한다).
+    floor_exposure: FloorExposureResult | None = None
 
 
 def _admin_source_id(admin: AdminCodeMatch) -> str:
@@ -65,7 +70,7 @@ def _admin_source_id(admin: AdminCodeMatch) -> str:
 
 
 def _from_vulnerability_result(
-    result: BuildingVulnerabilityResult, source_id: str
+    result: BuildingVulnerabilityResult, source_id: str, floor_exposure: FloorExposureResult | None
 ) -> BuildingAgentOutput:
     return BuildingAgentOutput(
         vulnerability_score=result.vulnerability_score,
@@ -75,6 +80,28 @@ def _from_vulnerability_result(
         missing_fields=result.missing_fields,
         status=result.status,
         note=result.note,
+        floor_exposure=floor_exposure,
+    )
+
+
+def _compute_floor_exposure(
+    target_floor: dict | None, flood: FloodAgentOutput | None
+) -> FloorExposureResult | None:
+    """target_floor 미입력이면 이 기능 자체를 안 쓴다는 뜻이라 None(필드 생략과 동일
+    의미) — flood_exposure.py를 호출조차 하지 않는다. flood가 없는데 target_floor만
+    있는 경우는 호출자 실수이므로 coverage="OUT_OF_SCOPE"와 동일하게 안전축으로
+    처리한다(건물 전체 스코어로 폴백)."""
+    if target_floor is None:
+        return None
+    coverage = flood.flood.coverage if flood is not None else "OUT_OF_SCOPE"
+    depth_class = flood.flood.seg_code if flood is not None else None
+    building_tier = flood.flood.tier if flood is not None else None
+    return determine_floor_flood_exposure(
+        floor_type=target_floor.get("floor_type"),
+        floor_no=target_floor.get("floor_no"),
+        depth_class=depth_class,
+        building_tier=building_tier,
+        coverage=coverage,
     )
 
 
@@ -84,9 +111,13 @@ def run_building_agent(
     lon: float | None = None,
     pnu: str | None = None,
     as_of_year: int | None = None,
+    target_floor: dict | None = None,
+    flood: FloodAgentOutput | None = None,
 ) -> BuildingAgentOutput:
     if as_of_year is None:
         as_of_year = datetime.date.today().year
+
+    floor_exposure = _compute_floor_exposure(target_floor, flood)
 
     try:
         admin = resolve_admin_codes(lat=lat, lon=lon, address=address, pnu=pnu)
@@ -99,6 +130,7 @@ def run_building_agent(
             missing_fields=["전체"],
             status=STATUS_FAILED,
             note=_RESOLUTION_API_ERROR_NOTE,
+            floor_exposure=floor_exposure,
         )
     if admin is None:
         return BuildingAgentOutput(
@@ -109,6 +141,7 @@ def run_building_agent(
             missing_fields=["전체"],
             status=STATUS_FAILED,
             note=_RESOLUTION_FAILED_NOTE,
+            floor_exposure=floor_exposure,
         )
 
     source_id = _admin_source_id(admin)
@@ -124,6 +157,7 @@ def run_building_agent(
             missing_fields=["전체"],
             status=STATUS_FAILED,
             note=_API_ERROR_NOTE,
+            floor_exposure=floor_exposure,
         )
 
     vuln = compute_vulnerability(
@@ -133,4 +167,4 @@ def run_building_agent(
         main_purps_cd_nm=info.main_purps_cd_nm if info else None,
         as_of_year=as_of_year,
     )
-    return _from_vulnerability_result(vuln, source_id)
+    return _from_vulnerability_result(vuln, source_id, floor_exposure)

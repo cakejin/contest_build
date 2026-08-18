@@ -107,3 +107,20 @@ HANDOVER.md의 가정·설계가 실제 구현 중 다르게 확인되면 여기
 **실제**: 코드 확인 결과 `policy/esg_recommendations.py`가 알림 큐에 오른 담보 전원에게 무조건 "보험 가입 여부 확인 권장" 액션을 붙이고 있었을 뿐, 실제 가입 여부 데이터 자체가 없어 "미확인 N건"이라는 구체적 숫자를 셀 방법이 처음부터 없었다 — §③ 문구가 실현 불가능한 상태였다. `PortfolioRecord`에 `insurance_covered: bool | None`(합성 데이터, 가입 확률 70% 잠정치)을 추가하고, `AlertQueueEntry`·`recommend_actions_for_alert()`가 이 값을 읽어 이미 가입 확인된 담보에는 보험 확인 액션을 빼도록 바꿨다. `count_insurance_unconfirmed()`로 §③ 문구의 N을 실제로 계산해 `graph/week4_demo.py` 결과(`insurance_unconfirmed_count`)와 웹 데모(`PortfolioCard.tsx`)에 노출.
 
 **영향**: 기존 316건에는 `scripts/backfill_insurance_coverage.py`(시드 고정 재현 가능)로 소급 적용(가입 228건=72.2%). `generate_portfolio.py`도 향후 신규 레코드에 동일 로직을 적용하도록 갱신. `AlertQueueEntry`에 항목이 하나 늘어 `test_portfolio_alerts.py::test_alert_entry_has_no_ltv_or_rate_fields`의 필드 화이트리스트를 갱신했다(금지어 검사는 그대로 통과 — "insurance_covered"는 ltv/rate/recall/interest 어느 것도 포함하지 않음). `pytest tests/ -q` 151개(148+신규 3개) 전부 통과. 웹 프론트(`webapp/frontend`)도 재빌드해 `webapp/static/` 갱신함.
+
+## 2026-08-18 — HANDOVER §⑧(층별 리스크 차등화) 계량 코어 구현 — 그래프/CLI/웹 UI 연동은 다음 단계로 이월
+
+**계획(HANDOVER.md 기준)**: §⑧ 전체(판정 로직 pseudocode, 데이터소스 2종, 기존 파이프라인 통합점 옵션A/B)가 연구 저장소에서 2026-08-17/18 반영됐으나 이 저장소엔 미착수 상태였다.
+
+**실제**: §⑧이 "실호출로 검증 완료"라 주장한 두 가지를 이 저장소에서도 직접 재검증했다 — ① `getBrFlrOulnInfo`를 포항 남구 인덕로 27(지상만 있는 건물)과 대구의 지하층 보유 건물 두 곳에 실호출해 `flrGbCd`: "10"=지하/"20"=지상, `mainAtchGbCd`: "0"=주건축물 매핑을 직접 확인(추정치 아님). ② `address_resolver.py`의 `platGbCd="1"`(산) 텍스트 파싱이 애초에 맞았음을 재확인(로직 변경 없음, 주석의 "미검증" 문구만 갱신).
+
+구현한 것:
+- `gis/query.py`: `FloodRiskResult.seg_code` 노출(`loader.py`가 이미 읽고 있던 걸 스키마에만 안 태우고 있었음). 인덕동 확정지점 실측값 `N331`(0.5~1.0m) 확인.
+- `building/brhub.py`: `fetch_br_floor_info()` 신규 — `mainAtchGbCd=="0"`(주건축물)만 필터링(§⑧이 경고한 "부속건축물 층정보 오사용 버그" 원천 차단).
+- `scenario/floor_exposure.py`(신규 모듈): `determine_floor_flood_exposure()` — §⑧ pseudocode 그대로(로직 변경 없이 그대로 옮김). `apply_floor_adjustment()` — 옵션A(권고안) 구현: 층별 리스크 등급을 건물 전체 취약도 점수와 같은 축(0~100)으로 변환해 50:50 가중평균(근거문헌 없는 잠정 가중치, w1~w4와 동일 성격).
+- `agents/building_agent.py`: `target_floor`·`flood` 선택 파라미터 추가, `BuildingAgentOutput.floor_exposure` 필드 추가 — 둘 다 미입력 시 기존 동작과 100% 동일(회귀 테스트로 고정).
+- `agents/scenario_agent.py`: `apply_floor_adjustment()`를 EAL 계산 직전에 삽입 — `floor_exposure`가 없으면 기존 EAL과 정확히 동일한 값이 나옴을 테스트로 확인.
+
+**이번 패스에서 의도적으로 안 한 것(다음 단계 후보)**: `graph/pipeline.py`(LangGraph)의 `building_node`는 현재 `flood_node`와 완전 병렬(fan-out)인데, `floor_exposure` 계산은 flood 결과가 있어야 해서 이 기능을 실제로 쓰려면 두 노드를 순차 실행하거나 그래프를 조건부로 바꿔야 한다 — 이번엔 계량 코어(`building_agent`를 직접 `flood=`·`target_floor=` 인자로 호출하는 경로)만 완성했고, `graph/pipeline.py`·`week3_demo.py`·CLI 스크립트·웹 데모 UI에 실제 층수 입력 폼을 연결하는 작업은 하지 않았다 — 급하게 얹으면 지금 통과 중인 그래프 fan-out 구조·테스트를 깨뜨릴 위험이 있어 별도 작업으로 분리하는 게 안전하다고 판단.
+
+**영향**: PM은 이 계량 코어를 실제 사용자 입력 경로(웹 폼 "층수 입력" 필드 등)까지 연결할지, 아니면 §⑧을 "계량 코어는 준비됨, UI 연동은 로드맵"으로 발표 자료에 반영할지 판단 필요. 신규 테스트(`test_floor_exposure.py`·`test_scenario_agent.py` + `test_building_agent_resolution.py` 추가분) 포함 `pytest tests/ -q` 전체 재확인 필요(실행 중).
