@@ -4,6 +4,7 @@
 from climate_risk.policy.disclosures import ACTION_PHRASE_TEMPLATES
 from climate_risk.policy.esg_recommendations import (
     build_esg_recommendations,
+    count_insurance_unconfirmed,
     recommend_actions_for_alert,
 )
 from climate_risk.policy.forbidden_phrases import scan_forbidden_phrases
@@ -35,3 +36,26 @@ def test_empty_alert_queue_produces_no_recommendations():
 def test_adaptation_incentive_always_present():
     rec = recommend_actions_for_alert("C-001")
     assert ACTION_PHRASE_TEMPLATES["ADAPTATION_INCENTIVE"] in rec.actions
+
+
+def test_insurance_check_omitted_when_already_covered():
+    rec = recommend_actions_for_alert("C-001", insurance_covered=True)
+    assert ACTION_PHRASE_TEMPLATES["INSURANCE_CHECK"] not in rec.actions
+    # 나머지 3개 액션은 그대로 유지돼야 한다
+    assert len(rec.actions) == 3
+
+
+def test_insurance_check_present_when_unconfirmed_or_not_covered():
+    for insurance_covered in (None, False):
+        rec = recommend_actions_for_alert("C-001", insurance_covered=insurance_covered)
+        assert ACTION_PHRASE_TEMPLATES["INSURANCE_CHECK"] in rec.actions
+
+
+def test_count_insurance_unconfirmed():
+    alerts = [
+        {"collateral_id": "C-001", "insurance_covered": True},
+        {"collateral_id": "C-002", "insurance_covered": False},
+        {"collateral_id": "C-003", "insurance_covered": None},
+        {"collateral_id": "C-004"},  # 키 자체가 없는 옛 형태도 미확인으로 취급
+    ]
+    assert count_insurance_unconfirmed(alerts) == 3

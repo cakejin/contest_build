@@ -5,6 +5,11 @@ LTV·금리 필드는 절대 넣지 않는다(보호형 사용 규율 2항 — �
 이 큐는 "재심사가 필요할 수 있다"는 알림일 뿐, 조건 변경 자체가 아니다.
 `score_before`/`score_after`는 `building.vulnerability_score`(EAL과 별도로 존재하는
 유일한 스칼라)를 쓴다.
+
+`insurance_covered`는 HANDOVER §④ 원본 스키마엔 없던 필드다(2026-08-18 추가) — §③
+데모 시나리오가 약속한 "보험 커버리지 미확인 N건" 문구를 실제로 셀 수 있는 근거가
+없었던 공백을 메운다(`portfolio/schema.py` 참조). `policy/esg_recommendations.py`가
+이 값을 읽어 보험 확인 액션 추천 여부를 가른다.
 """
 
 from __future__ import annotations
@@ -30,6 +35,7 @@ class AlertQueueEntry:
     EAL_change_pct: float | None
     threshold: float
     geocode_confidence: str | None
+    insurance_covered: bool | None
 
 
 def _eal_change_pct(before: float | None, after: float | None) -> float | None:
@@ -73,6 +79,7 @@ def build_alert_queue(
                 EAL_change_pct=change_pct,
                 threshold=threshold_pct,
                 geocode_confidence=result.geocode_confidence,
+                insurance_covered=record.insurance_covered,
             )
         )
     return entries

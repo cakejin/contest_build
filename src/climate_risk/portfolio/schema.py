@@ -16,6 +16,14 @@ DEV_LOG.md 참조).
 lat/lon/region_code/geocode_confidence/geocoded_at은 이 파일에 처음엔 None으로 들어있고,
 scripts/geocode_portfolio.py(1회성 warm-up)가 채운다 — 매 실행마다 지오코딩 API를
 다시 부르지 않기 위한 캐시다.
+
+`insurance_covered`는 "은행만 아는 여신 정보"(data-security_...md §4 원칙과 동일 —
+잔액·LTV와 같은 축)로, 화재보험 등 담보 부보 상태를 나타낸다. 외부 API로 조회할 수 있는
+값이 아니라 전량 합성이며, 실손해 통계 근거 없는 잠정 분포(가입 70%)로 채워져 있다
+(scripts/generate_portfolio.py 참조). HANDOVER.md §③ "보험 커버리지 미확인 N건" 알림
+문구가 실제로 셀 수 있는 숫자를 갖도록 2026-08-18 추가 — `policy/esg_recommendations.py`가
+`insurance_covered is not True`인 담보에만 보험 확인 액션을 추천한다(가입 확인된 담보에
+같은 액션을 또 추천하지 않기 위함).
 """
 
 from __future__ import annotations
@@ -38,6 +46,7 @@ class PortfolioRecord:
     region_code: str | None = None
     geocode_confidence: str | None = None  # None(미시도) | "OK" | "FAILED"
     geocoded_at: str | None = None
+    insurance_covered: bool | None = None  # None(미확인) | True(가입) | False(미가입 확인됨)
 
     def with_geocode(
         self,

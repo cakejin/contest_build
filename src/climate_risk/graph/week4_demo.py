@@ -28,7 +28,10 @@ from climate_risk.evaluation.metrics import (
 from climate_risk.gis.query import FloodRiskResult
 from climate_risk.graph.week3_demo import OnStage, run_week3_demo
 from climate_risk.memo.schema import MemoAgentOutput, MemoSection, RejectedSentence
-from climate_risk.policy.esg_recommendations import build_esg_recommendations
+from climate_risk.policy.esg_recommendations import (
+    build_esg_recommendations,
+    count_insurance_unconfirmed,
+)
 from climate_risk.policy.redteam_checks import run_all_redteam_checks
 
 # EAL 재현성은 특정 주소의 실시간 지오코딩·건축HUB 결과가 아니라 몬테카를로 엔진
@@ -89,12 +92,16 @@ def run_week4_demo(
     memo = _memo_dataclass_from_dict(result["memo"])
 
     esg_recommendations = []
+    insurance_unconfirmed_count = 0
     portfolio_batch = result.get("portfolio_batch")
     if portfolio_batch is not None:
+        alerts = portfolio_batch["alerts"]
         esg_recommendations = [
             {"collateral_id": r.collateral_id, "actions": r.actions}
-            for r in build_esg_recommendations(portfolio_batch["alerts"])
+            for r in build_esg_recommendations(alerts)
         ]
+        # HANDOVER §③ "보험 커버리지 미확인 N건" — 알림 화면 헤드라인 숫자.
+        insurance_unconfirmed_count = count_insurance_unconfirmed(alerts)
 
     eval_metrics = {
         "citation": citation_metric(memo),
@@ -107,6 +114,7 @@ def run_week4_demo(
     }
 
     result["esg_recommendations"] = esg_recommendations
+    result["insurance_unconfirmed_count"] = insurance_unconfirmed_count
     result["eval_metrics"] = eval_metrics
     result["redteam_checks"] = run_all_redteam_checks()
     return result

@@ -7,9 +7,11 @@ import { fmtWon } from '../lib/format'
 export function PortfolioCard({
   portfolioBatch,
   esgRecommendations,
+  insuranceUnconfirmedCount,
 }: {
   portfolioBatch: PortfolioBatch | null
   esgRecommendations: EsgRecommendation[]
+  insuranceUnconfirmedCount?: number
 }) {
   return (
     <Card icon="portfolio" title="포트폴리오 재심사 알림 · ESG 추천">
@@ -20,6 +22,9 @@ export function PortfolioCard({
       ) : (
         <>
           <KvRow label="지역 매칭" value={`${portfolioBatch.matched_count}건 / 전체 ${portfolioBatch.total_records}건`} />
+          {portfolioBatch.alerts.length > 0 && !!insuranceUnconfirmedCount && (
+            <KvRow label="보험 커버리지 미확인" value={`${insuranceUnconfirmedCount}건`} />
+          )}
           {portfolioBatch.alerts.length === 0 ? (
             <div className="text-xs text-muted bg-surface-alt rounded-lg py-3 px-3.5">
               매칭된 담보 {portfolioBatch.matched_count}건 전부 EAL 변화율이 재심사 임계치 미만이라 알림이 발생하지 않았어요 — 특보가

@@ -76,9 +76,10 @@ export interface AdvisoryData {
 
 export interface PortfolioAlert {
   collateral_id: string
-  EAL_before: number
+  EAL_before: number | null
   EAL_after: number
   EAL_change_pct: number | string
+  insurance_covered: boolean | null
 }
 
 export interface PortfolioBatch {
@@ -101,6 +102,7 @@ export interface AssessResult {
   advisory: AdvisoryData
   portfolio_batch: PortfolioBatch | null
   esg_recommendations: EsgRecommendation[]
+  insurance_unconfirmed_count?: number
   coverage_label?: string
 }
 

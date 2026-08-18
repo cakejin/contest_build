@@ -129,5 +129,6 @@ def test_alert_entry_has_no_ltv_or_rate_fields():
         "EAL_change_pct",
         "threshold",
         "geocode_confidence",
+        "insurance_covered",  # 2026-08-18 추가 — HANDOVER §③ "보험 커버리지 미확인" 문구 근거화
     }
     assert field_names == expected

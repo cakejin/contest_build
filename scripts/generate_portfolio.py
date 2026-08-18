@@ -58,6 +58,8 @@ VALUE_PARAMS: dict[str, tuple[float, float]] = {
 
 LTV_MEAN, LTV_SD, LTV_MIN, LTV_MAX = 0.65, 0.10, 0.30, 0.90
 FIN_SEED = 2026  # 담보가액/LTV 합성 난수 시드(EAL 몬테카를로 시드와 별개, 재현성용 고정)
+# 보험가입여부(2026-08-18 추가, scripts/backfill_insurance_coverage.py와 동일 정신) — 근거문헌 없는 잠정치.
+INSURANCE_COVERED_PROB = 0.70
 
 
 def _load_poi_candidates() -> dict[str, list[dict]]:
@@ -209,6 +211,7 @@ def main() -> None:
                     region_code=region_code,
                     geocode_confidence="OK",
                     geocoded_at=_now_iso(),
+                    insurance_covered=bool(rng.random() < INSURANCE_COVERED_PROB),
                 )
             )
             time.sleep(0.1)

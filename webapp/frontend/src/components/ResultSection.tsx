@@ -52,7 +52,11 @@ export function ResultSection({ result, loading }: { result: AssessResult | null
 
       <MemoCard memo={result.memo} />
       <AdvisoryCard advisory={result.advisory} />
-      <PortfolioCard portfolioBatch={result.portfolio_batch} esgRecommendations={result.esg_recommendations} />
+      <PortfolioCard
+        portfolioBatch={result.portfolio_batch}
+        esgRecommendations={result.esg_recommendations}
+        insuranceUnconfirmedCount={result.insurance_unconfirmed_count}
+      />
 
       <div className="mt-[22px] bg-warn-bg text-warn-ink rounded-xl py-3.5 px-4 text-xs shadow-card">{result.memo.disclosure}</div>
     </>
