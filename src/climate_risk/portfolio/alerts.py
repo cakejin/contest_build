@@ -25,15 +25,17 @@ class AlertQueueEntry:
     collateral_id: str
     score_before: float | None
     score_after: float | None
-    EAL_before: float
+    EAL_before: float | None
     EAL_after: float | None
     EAL_change_pct: float | None
     threshold: float
     geocode_confidence: str | None
 
 
-def _eal_change_pct(before: float, after: float | None) -> float | None:
-    if after is None:
+def _eal_change_pct(before: float | None, after: float | None) -> float | None:
+    """before가 None(스냅샷 시점 커버리지 밖이라 EAL 자체가 없었음)이면 비교 불가라
+    None을 반환한다 — 0으로 대체하면 급증(from-nothing)으로 오판될 수 있다."""
+    if before is None or after is None:
         return None
     if before == 0:
         return None if after == 0 else float("inf")

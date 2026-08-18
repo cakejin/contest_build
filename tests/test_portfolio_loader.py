@@ -33,6 +33,6 @@ def test_real_synthetic_portfolio_file_loads():
 
     records = load_portfolio(PORTFOLIO_DATA_PATH)
 
-    assert len(records) == 40
+    assert len(records) == 316  # 8종 담보유형 확대(2026-08-18) — 창고만 36건(목표 40 미달), 나머지 7종은 40건, DEV_LOG.md 참조
     assert all(r.collateral_id for r in records)
     assert all(r.collateral_value > 0 for r in records)

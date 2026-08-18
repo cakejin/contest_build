@@ -340,9 +340,10 @@ erDiagram
 5. 포트폴리오 익스포저 지도(히트맵) 대시보드
 6. 고위험 담보 → 적응 투자(전환금융)·보험 확인 추천 리스트 (ESG 고리)
 7. 보호형 사용 규율의 제품 내 구현 (소급 불리 적용 금지·인센티브 온리 표기)
-8. **(로드맵, MVP 범위 아님)** 정기 배치 다층 주기 재평가(월~연 단위, ④ 4.1.1) + 외부 알림 채널(구글 푸시·카카오) 연동 — 발표 시 확장 가능성으로만 어필
+8. **[신규, 연구 저장소 2026-08-17 반영 — 이 저장소엔 미구현, 상세 스펙은 ⑧ 참조]** 층별 리스크 차등화 — 담보의 층수(지상/지하) 입력 시 침수심 등급 대비 노출도로 리스크를 세분화(지하층=고위험 고정, 지상층=침수심 등급·층고 비교). 선택 입력(층수 미입력 시 기존 건물 전체 스코어링으로 자동 폴백)
+9. **(로드맵, MVP 범위 아님)** 정기 배치 다층 주기 재평가(월~연 단위, ④ 4.1.1) + 외부 알림 채널(구글 푸시·카카오) 연동 — 발표 시 확장 가능성으로만 어필
 
-이 기능 각각의 "데모 시연 가능" 판정 기준은 ⑦ Definition of Done 표를 따른다 — 코드 존재 여부가 아니라 실제 작동 시연 가능 여부로 판정한다. 항목 8은 데모 시연 대상이 아니라 발표 자료상 로드맵 언급 항목이다.
+이 기능 각각의 "데모 시연 가능" 판정 기준은 ⑦ Definition of Done 표를 따른다 — 코드 존재 여부가 아니라 실제 작동 시연 가능 여부로 판정한다. 항목 8은 아직 이 저장소에 착수되지 않은 추가 스펙(⑧ 참조), 항목 9는 데모 시연 대상이 아니라 발표 자료상 로드맵 언급 항목이다.
 
 ---
 
@@ -511,3 +512,62 @@ erDiagram
 8. **한강홍수통제소 API(지역 개요 통계)** — 보조 화면용, 데모 핵심 경로 아님.
 
 **절대 축소 금지 항목**: ①커버리지 게이트(블루라이닝 방어의 기술적 증거) ②인용검증 게이트(설명가능성 핵심 주장) ③보호규율 문구 고정(블루라이닝 서사 전체의 방어선) ④EAL 시드 재현성(화이트박스 포지셔닝의 증거).
+
+---
+
+## ⑧ [추가, 연구 저장소 2026-08-17/18 반영 — 이 저장소엔 미착수] 층별 리스크 차등화
+
+> Week1~4 MVP는 이미 완료된 뒤(2026-08-11/12) 연구 저장소에서 추가로 확정된 스펙이라 원본 HANDOVER 작성(2026-08-05/07) 시점엔 없었다. 이 절만 읽고 바로 착수 가능하도록 자체완결형으로 썼다 — 상세 경위·대안 검토 과정이 궁금하면 `../contest_research/plans/ai-architecture_climate-collateral-underwriting-ai.md` §8, `../contest_research/plans/data-security_climate-collateral-underwriting-ai.md` §1.16, `../contest_research/decision/qna/idea-climate-collateral-underwriting-ai.md` Q19~Q27을 열어볼 것.
+
+### 기능 개요
+담보의 층수(지상/지하)를 선택 입력하면, 건물 전체 단위 취약도 점수 대신 **그 층의 침수 노출도**로 리스크를 세분화한다 — 지하층은 무조건 고위험, 지상층은 층이 올라갈수록(침수심 등급 대비) 리스크가 감소. 층 정보를 입력하지 않으면 기존 건물 전체 스코어링으로 자동 폴백(§2.3 기존 경로는 그대로 유지, 이 기능은 추가 옵션이지 대체가 아님).
+
+### 데이터 소스 — 추가 다운로드·API 신청 불필요, 이미 가진 것만으로 구현 가능
+1. **침수심 등급**: 이미 `data/climate-collateral-underwriting-ai/raw/`에 있는 홍수위험지도 SHP의 `SEG_CODE` 필드가 침수심 등급 코드 그 자체다(N330=0.5m 미만 / N331=0.5~1.0m / N332=1.0~2.0m / N333=2.0~5.0m / N334=5.0m 이상). 한 지역 파일 안에 이 5개 등급 폴리곤은 서로 겹치지 않는 배타적 분할이라, 기존 point-in-polygon 최근접 1건 조회 결과에 `seg_code` 컬럼만 SELECT에 추가하면 곧 그 좌표의 침수심 등급이다.
+2. **층별개요**: 국토부 건축HUB API `getBrFlrOulnInfo` — 엔드포인트 `http://apis.data.go.kr/1613000/BldRgstHubService/getBrFlrOulnInfo`, 파라미터는 기존 `getBrTitleInfo`와 동일(`sigunguCd`·`bjdongCd`·`platGbCd`·`bun`·`ji`·`serviceKey`), `.env`의 기존 키 그대로 재사용. 실키 검증 완료(`resultCode: "00"`, `flrGbCd`/`flrNo`/`mainPurpsCd`/`area`/`mainAtchGbCd` 필드 반환 확인).
+3. **[신규, 2026-08-18] `platGbCd`·`mainAtchGbCd` 코드값 확정** — 국토부 공식 활용가이드(`OpenAPI활용가이드-건축HUB_건축물대장_1.0.hwp`, data.go.kr 15134735 참고문서) 직접 열람으로 확인:
+   - `platGbCd`(대지구분코드): `0`=대지, `1`=산, `2`=블록. **이 저장소 `src/climate_risk/building/address_resolver.py`의 `resolve_from_parcel_text()`가 이미 "산" 접두어 텍스트 파싱으로 `platGbCd="1"`을 잠정 처리하고 있었는데(주석: "실호출로 검증하지 못했다"), 이번에 공식 문서로 그 가정이 맞았음이 확인됐다** — 코드 로직 변경은 불필요, 주석의 "미검증" 문구만 갱신하면 된다. 데모 대상 중 대구 달성군·군위군은 산지 비중이 높아 `platGbCd=1` 케이스가 실제로 나올 수 있으니, 이 기능 구현 시 회귀 테스트에 산 지번 케이스를 하나 추가할 것을 권고.
+   - `mainAtchGbCd`(주부속구분코드): `0`=주건축물, `1`=부속건축물. **이 필드는 현재 이 저장소 어디에도 쓰이고 있지 않다(층별개요 자체가 미구현이라 당연함)** — `getBrFlrOulnInfo` 응답이 한 주소에 주건축물·부속건축물(차고·창고 등)을 여러 행으로 섞어 반환할 수 있으므로, **이번에 새로 구현할 때 처음부터 `mainAtchGbCd == "0"`(주건축물)만 필터링**해야 한다. 이걸 빠뜨리면 부속건축물의 층 정보를 담보 건물 것으로 잘못 사용하는 버그가 생긴다.
+
+### 입력 확장
+기존 입력(주소 또는 PNU)에 선택 파라미터 `target_floor: {floor_type: "지상"|"지하", floor_no: int} | null` 추가. 미입력 시 기존 경로 그대로.
+
+### 판정 로직 (결정론적 화이트박스, LLM/ML 미사용)
+```python
+STANDARD_FLOOR_HEIGHT_M = 3.0   # 지상 표준 층고 근사치(공식 출처 미확정, 안전측 추정치로 사용)
+DEPTH_CLASS_UPPER_BOUND_M = {   # SEG_CODE → 보수적 상한(m). 출처: floodmap.go.kr WMS API 파라미터 문서(SegCode)
+    "N330": 0.5, "N331": 1.0, "N332": 2.0,
+    "N333": 5.0, "N334": 8.0,   # N334("5.0m 이상")는 무한대가 아닌 보수적 상한(8m)으로 캡
+}
+
+def determine_floor_flood_exposure(floor_type, floor_no, depth_class, building_tier, coverage):
+    if coverage == "OUT_OF_SCOPE":
+        return {"floor_risk_tier": None, "floor_unassessed": True,
+                "fallback_to_building_score": True, "reason": "건물 전체가 커버리지 밖(데이터 없음)"}
+    if floor_type is None or floor_no is None:
+        return {"floor_risk_tier": None, "floor_unassessed": True,
+                "fallback_to_building_score": True, "reason": "층 정보 미입력"}
+    if floor_type == "지하":
+        return {"floor_risk_tier": "HIGH", "basis": "지하층 무조건 고위험 원칙"}
+    if building_tier != "내부" or depth_class is None:
+        # coverage=IN_SCOPE인데 5개 등급 폴리곤(상호 배타적 분할) 어디에도 속하지 않으면
+        # "데이터 없음"이 아니라 "이 빈도 시나리오에서 실제로 비침수"라는 확정 신호다.
+        return {"floor_risk_tier": "LOW", "basis": "침수 폴리곤(5개 등급) 어디에도 속하지 않음 — 이 빈도 시나리오상 비침수 지역"}
+    depth_upper_m = DEPTH_CLASS_UPPER_BOUND_M[depth_class]
+    floor_elevation_m = (floor_no - 1) * STANDARD_FLOOR_HEIGHT_M   # 지상 1층 바닥 = 0m 기준
+    if floor_elevation_m < depth_upper_m:
+        exposure_ratio = min(1.0, (depth_upper_m - floor_elevation_m) / STANDARD_FLOOR_HEIGHT_M)
+        tier = "HIGH" if exposure_ratio >= 0.5 else "MEDIUM"
+        return {"floor_risk_tier": tier, "floor_elevation_m": floor_elevation_m,
+                "depth_upper_m": depth_upper_m, "exposure_ratio": exposure_ratio}
+    return {"floor_risk_tier": "LOW", "floor_elevation_m": floor_elevation_m,
+            "depth_upper_m": depth_upper_m, "exposure_ratio": 0.0}
+```
+
+### 기존 파이프라인과의 통합점
+- 건물취약도 에이전트(§4.2) 출력에 선택 필드 `floor_exposure: {requested, floor_type, floor_no, floor_risk_tier, floor_unassessed, fallback_to_building_score, basis, reason, source_ids} | null` 추가(`target_floor` 미입력 시 필드 자체 생략).
+- EAL 몬테카를로 연동은 2가지 옵션 — **옵션 A(권고, 먼저 구현)**: `floor_risk_tier`를 기존 취약도 가중합에 항 하나로 추가(공수 작음, 기존 구조 재사용). 옵션 B(정합적이나 공수 큼): 몬테카를로 반복마다 샘플링되는 확률적 침수심에서 `floor_elevation_m`을 차감해 손상함수 입력으로 사용. 시간 남으면 B로 고도화.
+- 메모 에이전트: `floor_exposure` 존재 시 "이 담보는 지상 3층으로 침수심 등급 대비 노출도가 낮음(LOW)" 같은 문장 생성 가능하되, 기존 인용 강제 규율 그대로 적용 — `source_ids` 인용 못 하면 해당 문장도 렌더링 차단.
+
+### 우선순위·공수
+데이터 소스 리스크가 전부 해소된 상태(추가 다운로드·API 승인 대기 없음)라 **선택 기능이지만 공수는 소~중** — 핵심 MVP(이미 완료)보다 우선순위는 낮음. 여유 있을 때 착수해도 됨.

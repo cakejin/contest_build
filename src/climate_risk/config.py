@@ -23,6 +23,11 @@ VWORLD_API_KEY = os.environ.get("VWORLD_API_KEY", "")
 DATA_GO_KR_API_KEY = os.environ.get("DATA_GO_KR_API_KEY", "")
 KMA_API_HUB_KEY = os.environ.get("KMA_API_HUB_KEY", "")
 SAFEMAP_API_KEY_A = os.environ.get("SAFEMAP_API_KEY_A", "")
+# business.juso.go.kr 도로명주소 검색API(jstRoadNmAddrApiSearch) — 담보 포트폴리오 확장(2026-08-18)의
+# 미달 유형(공동주택·다가구주택 등) 실주소 발굴용. 개발 승인키(본인인증 없이 발급)라 유효기간 제한 있음.
+# 주의: scripts/discover_via_juso.py 등 배치 생성 스크립트 전용이다. 라이브 단건 조회(webapp/app.py)의
+# 주소 입력은 이 키와 무관하게 geocoding/vworld.py로 처리된다 — 혼동 시 DEV_LOG.md 2026-08-18 참조.
+JUSO_API_KEY = os.environ.get("JUSO_API_KEY", "")
 
 RAW_DATA_DIR = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "raw"
 
