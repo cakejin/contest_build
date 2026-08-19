@@ -34,6 +34,20 @@ export interface AddressSuggestion {
   building_name: string | null
 }
 
+// 2026-08-19(계속, DEV_LOG.md 참조) — "기존 포트폴리오 조회" 탭용. ltv/balance는
+// 노출하지 않는다(고를 때 참고용으로 불필요, HANDOVER §⑥ 블루라이닝 방지 설계 참조).
+export interface PortfolioListItem {
+  collateral_id: string
+  address: string
+  collateral_type: string
+  region_code: string | null
+  collateral_value: number
+}
+
+// "신규 담보 조회"(자유입력)와 "기존 포트폴리오 조회"(316건 중 선택)를 명확히 분리
+// (사용자 피드백, DEV_LOG.md 2026-08-19 참조 — 이전엔 이 구분이 화면에 안 보였다).
+export type InputMode = 'new' | 'portfolio'
+
 export interface FloodResult {
   coverage: string
   tier: string

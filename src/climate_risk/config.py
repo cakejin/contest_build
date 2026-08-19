@@ -44,7 +44,7 @@ class FloodShpSource:
     freq_label: str  # dbf FLDLV_FREQ와 일치
 
 
-# 6개 SHP 전량 — 냉천(포항시 남구, 기왕최대) + 신천(대구 5개구, 500년)
+# 7개 SHP 전량 — 냉천(포항시 남구, 기왕최대) + 신천(대구 5개구, 500년) + 거제시(2026-08-19 추가, 500년)
 FLOOD_SHP_SOURCES: list[FloodShpSource] = [
     FloodShpSource(
         path=RAW_DATA_DIR
@@ -54,6 +54,24 @@ FLOOD_SHP_SOURCES: list[FloodShpSource] = [
         region_name="포항시 남구",
         river_name="냉천",
         freq_label="MAX",
+    ),
+    # 거제시는 냉천/신천과 달리 대표 하천 하나로 특정할 수 없다 — 지방하천 17개소
+    # (연초천·산양천·둔덕천·고현천 등)가 시 전역에 분포하고, 이 SHP 1개가 SGG 전체의
+    # 다중 하천 침수구역을 함께 담고 있다(세그먼트 bbox가 시 전역 21km를 가로지름,
+    # 특정 하천 하나의 범위가 아님을 실측 확인). "고현천" 등 단일 하천명으로 라벨링하면
+    # 부정확하므로 일반화된 표기를 쓴다. 6개 빈도(50/80/100/200/500/기왕최대)가 전부
+    # 다운로드돼 있으나 500년만 등록 — query_flood_risk()가 좌표당 폴리곤 1개만
+    # 선택하는 구조라 동일 region_code에 여러 빈도를 동시 등록하면 겹치는 좌표에서
+    # 선택이 비결정적이 된다(EAL의 발생확률 입력이 흔들림). 신천과 동일 기준(500년)으로
+    # 맞춰 AEP_BY_FREQ_LABEL 기존 매핑을 그대로 재사용(사용자 확인, 2026-08-19).
+    FloodShpSource(
+        path=RAW_DATA_DIR
+        / "행정구역 경상남도 거제시 500년 빈도 지방하천 하천범람지도"
+        / "RFM_SGG_RGN_48310_500.shp",
+        region_code="48310",
+        region_name="거제시",
+        river_name="거제시 관내 지방하천(다수)",
+        freq_label="500",
     ),
     FloodShpSource(
         path=RAW_DATA_DIR
@@ -141,14 +159,29 @@ KMA_WTHR_WRN_BASE_URL = "https://apis.data.go.kr/1360000/WthrWrnInfoService/getW
 # 예견된 제약, DEV_LOG.md 2026-08-12 참조). 포항(47111)의 stnId=138은 표준 기상청 관측지점
 # 번호(포항)를 따른 추정값 — 확인 시점에 활성 특보가 없어 "매핑이 맞다"를 실측으로 증명하지
 # 못했다(resultCode 03=NO_DATA는 "특보 없음"과 "잘못된 stnId"를 구분해주지 않는다).
+# 2026-08-19 추가 — 거제(48310)의 stnId=159(부산지방기상청). 다른 지역들과 달리 실경보
+# 텍스트만으로 검증한 게 아니라, `wrn_met_data.php`(kma_historical.py)에서 거제
+# REG_ID(L1082200)의 실제 과거 발효 기록(힌남노 2022-09-06) 자체가 STN=159로 발표된
+# 것을 교차 확인했다 — 그래서 verified=True. 같은 날 라이브 조회에서도 stnId=159가
+# 실제 활성 폭염주의보(2026-08-19)를 정상 반환함을 재확인.
 REGION_CODE_TO_KMA_STN_ID: dict[str, tuple[str, bool]] = {
     "47111": ("138", False),  # 포항 남구 — 미검증(best-effort)
+    "48310": ("159", True),  # 거제시
     "27200": ("143", True),  # 대구 남구
     "27110": ("143", True),  # 대구 중구
     "27260": ("143", True),  # 대구 수성구
     "27140": ("143", True),  # 대구 동구
     "27230": ("143", True),  # 대구 북구
 }
+
+# 2026-08-19 추가(DEV_LOG.md 참조) — 기상청 API허브(apihub.kma.go.kr)의 "특보자료 API"/
+# "특보구역 API". data.go.kr의 WthrWrnInfoService(위 KMA_WTHR_WRN_BASE_URL)와 완전히
+# 다른 포털·인증키 체계이며, API마다 개별 "활용신청" 승인이 필요함을 사용자와의 실측
+# 조사로 확인했다(계정 키가 있어도 API별로 따로 신청해야 함). 2004-06-30~현재까지의
+# 정형 특보 발효/해제 이력을 조회할 수 있어, advisory/live.py의 "6일 초과 과거 조회
+# 불가" 한계를 이 API로 우회한다.
+KMA_WRN_MET_DATA_URL = "https://apihub.kma.go.kr/api/typ01/url/wrn_met_data.php"
+KMA_WRN_REG_URL = "https://apihub.kma.go.kr/api/typ01/url/wrn_reg.php"
 PORTFOLIO_DATA_PATH = CURATED_DATA_DIR / "portfolio" / "synthetic_portfolio.json"
 AUDIT_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "reviewer_ack_log.jsonl"
 ALERT_QUEUE_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "alert_queue_log.jsonl"

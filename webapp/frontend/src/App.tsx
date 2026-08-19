@@ -4,21 +4,29 @@ import { AssessForm } from './components/AssessForm'
 import { ProgressList } from './components/ProgressList'
 import { ResultSection } from './components/ResultSection'
 import { fetchRegionPresets, startAssessStream } from './api'
-import type { AssessResult, ProgressItem, RegionPreset, ResolvedRegion } from './types'
+import type { AssessResult, InputMode, PortfolioListItem, ProgressItem, ResolvedRegion } from './types'
 
 function App() {
-  const [presets, setPresets] = useState<RegionPreset[]>([])
-  const [presetIndex, setPresetIndex] = useState(0)
+  // 2026-08-19(계속, DEV_LOG.md 참조) — "신규 담보 조회"(자유입력)와 "기존 포트폴리오
+  // 조회"(316건 중 선택)를 명확히 분리한 2탭 구조. 이전엔 주소창이 우리 316건 데이터와
+  // 연결되는지 안 되는지 화면에서 구분이 안 돼 혼란이 있었다.
+  const [inputMode, setInputMode] = useState<InputMode>('new')
   const [address, setAddress] = useState('')
-  const [collateralValue, setCollateralValue] = useState('500000000')
+  // 근거 없는 예시 숫자(5억)를 기본값으로 박아두지 않는다(DEV_LOG.md 2026-08-19 참조) —
+  // "신규 담보 조회"는 빈 칸으로 시작해 사용자가 직접 입력하도록 강제하고, "기존
+  // 포트폴리오 조회"는 선택한 레코드의 실제 담보가액으로 채워진다.
+  const [collateralValue, setCollateralValue] = useState('')
   const [floorType, setFloorType] = useState('')
   const [floorNo, setFloorNo] = useState('')
-  // HANDOVER 논의(DEV_LOG.md 2026-08-18) — region_code/mode/timeline_path는 더 이상
-  // 프리셋에서 오지 않는다. AddressField가 입력 주소를 감지해 여기로 알려주면, 그
-  // 감지 결과가 /api/assess로 보낼 값의 유일한 출처다(담보 평가↔포트폴리오 알림
-  // 불일치 버그의 근본 수정).
+  // HANDOVER 논의(DEV_LOG.md 2026-08-18) — region_code는 더 이상 프리셋에서 오지
+  // 않는다. AddressField/PortfolioPicker가 입력·선택된 주소를 감지해 여기로 알려주면,
+  // 그 감지 결과가 /api/assess로 보낼 region_code의 유일한 출처다(담보 평가↔포트폴리오
+  // 알림 불일치 버그의 근본 수정).
   const [detectedRegion, setDetectedRegion] = useState<ResolvedRegion | null>(null)
-  const [useReplay, setUseReplay] = useState(true)
+  // 2026-08-19(계속, DEV_LOG.md 참조) — "리플레이/라이브/특정날짜" 3택 드롭다운은
+  // 사용자 피드백으로 제거했다. 날짜 하나만 있으면 그 날짜의 과거 특보를, 비우면
+  // 지금 시점 라이브 특보를 보여준다 — mode 판단은 백엔드가 이 값 유무로 알아서 한다.
+  const [queryDate, setQueryDate] = useState('')
   const [progressItems, setProgressItems] = useState<ProgressItem[]>([])
   const [result, setResult] = useState<AssessResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -26,30 +34,29 @@ function App() {
   const closeStreamRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
+    // "예시 주소로 채우기" 드롭다운은 제거했다(사용자 요청, DEV_LOG.md 2026-08-19 참조) —
+    // 대신 첫 로딩 시 힌남노 프리셋(포항 남구) 샘플 주소로 조용히 초기값만 채워둔다.
     fetchRegionPresets().then((data) => {
-      setPresets(data)
       if (data.length > 0) setAddress(data[0].sample_address)
     })
     return () => closeStreamRef.current?.()
   }, [])
 
-  useEffect(() => {
-    // 새로 감지된 지역에 큐레이션 리플레이가 있으면 기본으로 재생을 켜고, 없으면
-    // (라이브만 가능하거나 커버리지 밖) 꺼둔다 — 지역이 바뀔 때마다 자동 재조정.
-    setUseReplay(!!detectedRegion?.curated_replay)
-  }, [detectedRegion?.curated_replay])
+  const handleInputModeChange = (mode: InputMode) => {
+    setInputMode(mode)
+    // 탭을 바꾸면 이전 탭의 선택/입력이 새 탭으로 잘못 넘어가지 않도록 초기화한다.
+    setAddress('')
+    setCollateralValue('')
+    setDetectedRegion(null)
+  }
 
-  const handlePresetChange = (index: number) => {
-    setPresetIndex(index)
-    const preset = presets[index]
-    if (preset) setAddress(preset.sample_address) // AddressField가 이 변경을 감지해 자동으로 재조회함
+  const handlePortfolioSelect = (item: PortfolioListItem) => {
+    setAddress(item.address)
+    setCollateralValue(String(item.collateral_value))
   }
 
   const handleSubmit = () => {
     closeStreamRef.current?.()
-
-    const mode = useReplay && detectedRegion?.curated_replay ? 'replay' : 'live'
-    const timelinePath = mode === 'replay' ? detectedRegion?.curated_replay?.timeline_path ?? null : null
 
     setLoading(true)
     setConnectionError(false)
@@ -61,10 +68,9 @@ function App() {
         address,
         collateralValue,
         regionCode: detectedRegion?.region_code || '',
-        mode,
-        timelinePath,
         floorType: floorType || null,
         floorNo: floorType ? floorNo || null : null,
+        queryDate: queryDate || null,
       },
       {
         onProgress: (payload) => {
@@ -92,22 +98,22 @@ function App() {
       <main className="max-w-[1120px] mx-auto pt-7 px-5 pb-[72px] grid grid-cols-[380px_1fr] max-[860px]:grid-cols-1 gap-6 items-start">
         <section>
           <AssessForm
-            presets={presets}
-            presetIndex={presetIndex}
+            inputMode={inputMode}
             address={address}
             collateralValue={collateralValue}
             floorType={floorType}
             floorNo={floorNo}
             detectedRegion={detectedRegion}
-            useReplay={useReplay}
+            queryDate={queryDate}
             submitting={loading}
-            onPresetChange={handlePresetChange}
+            onInputModeChange={handleInputModeChange}
             onAddressChange={setAddress}
+            onPortfolioSelect={handlePortfolioSelect}
             onRegionResolved={setDetectedRegion}
             onCollateralValueChange={setCollateralValue}
             onFloorTypeChange={setFloorType}
             onFloorNoChange={setFloorNo}
-            onUseReplayChange={setUseReplay}
+            onQueryDateChange={setQueryDate}
             onSubmit={handleSubmit}
           />
           <ProgressList items={progressItems} />

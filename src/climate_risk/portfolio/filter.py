@@ -12,7 +12,7 @@ from climate_risk.portfolio.schema import PortfolioRecord
 @dataclass(frozen=True)
 class FilterResult:
     matched: list[PortfolioRecord]
-    # 지오코딩 실패(FAILED)와 "지오코딩은 성공했으나 6개 SHP 커버리지 밖"인 레코드를
+    # 지오코딩 실패(FAILED)와 "지오코딩은 성공했으나 SHP 커버리지 밖"인 레코드를
     # 함께 센다 — 둘 다 region_code=None으로 귀결되고, 둘 다 "이 지역필터 대상이 아님"을
     # 조용히 넘기지 않고 가시화해야 한다는 점에서 동일하게 취급한다.
     skipped_ungeocoded_count: int

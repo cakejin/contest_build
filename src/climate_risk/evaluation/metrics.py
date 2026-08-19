@@ -15,7 +15,7 @@ from climate_risk.agents.flood_agent import FloodAgentOutput
 from climate_risk.agents.scenario_agent import run_scenario_agent
 from climate_risk.config import DEFAULT_EAL_ITERATIONS, DEFAULT_EAL_SEED
 from climate_risk.gis.coverage import match_known_uncertain_point
-from climate_risk.gis.golden_points import NAECHEON_POINTS, SINCHEON_POINTS
+from climate_risk.gis.golden_points import GEOJE_POINTS, NAECHEON_POINTS, SINCHEON_POINTS
 from climate_risk.gis.query import query_flood_risk
 from climate_risk.memo.schema import MemoAgentOutput
 from climate_risk.policy.forbidden_phrases import scan_forbidden_phrases
@@ -36,7 +36,7 @@ def coverage_gate_metric() -> dict:
     tests/test_coverage_gate.py의 회귀 assertion을 pytest 밖에서도 재실행 가능한
     형태로 노출한 것(레드팀 시나리오4 체크가 이 함수를 그대로 위임 호출한다)."""
     failures: list[dict] = []
-    all_points = NAECHEON_POINTS + SINCHEON_POINTS
+    all_points = NAECHEON_POINTS + SINCHEON_POINTS + GEOJE_POINTS
     for label, lat, lon, expected_in_polygon, expected_tier in all_points:
         result = query_flood_risk(lat, lon)
         ok = (
@@ -107,4 +107,7 @@ def coverage_uncertain_point_metric() -> dict:
     for label, lat, lon, _, _ in SINCHEON_POINTS[1:]:
         if match_known_uncertain_point(lat, lon) is None:
             mismatches.append({"label": label, "expected_uncertain": True})
+    for label, lat, lon, _, _ in GEOJE_POINTS:
+        if match_known_uncertain_point(lat, lon) is not None:
+            mismatches.append({"label": label, "expected_uncertain": False})
     return {"clean": len(mismatches) == 0, "mismatches": mismatches}

@@ -9,12 +9,15 @@
   선형 위 좌표(V-World 지명 검색으로 확보, point-in-polygon으로 0.0m 직접 확인).
   나머지 4개(판정보류)는 gis/coverage.py KNOWN_UNCERTAIN_POINTS와 동일 좌표
   (근거·검증 방법은 그 모듈 주석 참조).
+- 거제시 4지점(2026-08-19 추가): PM 현장 실측 기록이 없어 SHP 대표점(내부 1개)+
+  V-World 지명 검색 POI(근접·원거리 3개)로 대체 확보 — 출처·검증 방법은
+  gis/golden_points.py GEOJE_POINTS 주석 참조.
 """
 
 import pytest
 
 from climate_risk.gis.coverage import match_known_uncertain_point
-from climate_risk.gis.golden_points import NAECHEON_POINTS, SINCHEON_POINTS
+from climate_risk.gis.golden_points import GEOJE_POINTS, NAECHEON_POINTS, SINCHEON_POINTS
 from climate_risk.gis.query import query_flood_risk
 
 
@@ -36,6 +39,17 @@ def test_sincheon_coverage_gate_regression(
     assert result.coverage == "IN_SCOPE", label
     assert result.in_polygon is expected_in_polygon, label
     assert result.tier == expected_tier, label
+
+
+@pytest.mark.parametrize("label,lat,lon,expected_in_polygon,expected_tier", GEOJE_POINTS)
+def test_geoje_coverage_gate_regression(
+    regions, label, lat, lon, expected_in_polygon, expected_tier
+):
+    result = query_flood_risk(lat, lon, regions=regions)
+    assert result.coverage == "IN_SCOPE", label
+    assert result.in_polygon is expected_in_polygon, label
+    assert result.tier == expected_tier, label
+    assert result.region_name == "거제시", label
 
 
 def test_sincheon_uncertain_points_flagged():

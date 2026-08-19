@@ -13,6 +13,7 @@ graph/run.py의 run_pipeline()과 달리 flood/building/scenario를 dict가 아�
 from __future__ import annotations
 
 import dataclasses
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -56,9 +57,20 @@ def run_week3_demo(
     # HANDOVER §⑧(층별 리스크 차등화) — 선택 입력. 미입력(None) 시 building_agent가
     # floor_exposure를 계산하지 않아 기존 건물 전체 스코어링 경로와 100% 동일하다.
     target_floor: dict | None = None,
+    # mode="historical"에서만 쓰인다(DEV_LOG.md 2026-08-19 참조) — 둘 다 None이면
+    # 기존 replay/live 경로와 100% 동일(advisory_agent가 mode!="historical"이면
+    # 이 값들을 아예 보지 않는다).
+    historical_start: datetime | None = None,
+    historical_end: datetime | None = None,
 ) -> dict[str, Any]:
     _notify(on_stage, "advisory", "기상특보 이력을 조회하고 있어요")
-    advisory = run_advisory_agent(region_code=region_code, mode=mode, timeline_path=timeline_path)
+    advisory = run_advisory_agent(
+        region_code=region_code,
+        mode=mode,
+        timeline_path=timeline_path,
+        historical_start=historical_start,
+        historical_end=historical_end,
+    )
 
     _notify(on_stage, "geocode", "주소를 좌표로 변환하고 있어요")
     geocoded = geocode_road_address(address)

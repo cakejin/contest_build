@@ -24,6 +24,7 @@ def test_filters_out_addresses_outside_coverage_prefixes(monkeypatch):
         {"roadAddr": "대구광역시 북구 침산로 10", "bdNm": "테스트빌라"},
         {"roadAddr": "대전광역시 유성구 대학로 1", "bdNm": "무관지역"},
         {"roadAddr": "경상북도 포항시 남구 인덕로 27", "bdNm": ""},
+        {"roadAddr": "경상남도 거제시 계룡로 125", "bdNm": ""},
     ]
     monkeypatch.setattr(juso, "_fetch_juso_json", lambda keyword, count: _fake_response(items))
 
@@ -32,8 +33,9 @@ def test_filters_out_addresses_outside_coverage_prefixes(monkeypatch):
     addresses = [r.road_address for r in results]
     assert "대구광역시 북구 침산로 10" in addresses
     assert "경상북도 포항시 남구 인덕로 27" in addresses
+    assert "경상남도 거제시 계룡로 125" in addresses
     assert "대전광역시 유성구 대학로 1" not in addresses
-    assert len(results) == 2
+    assert len(results) == 3
 
 
 def test_deduplicates_identical_road_addresses(monkeypatch):

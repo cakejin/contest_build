@@ -6,8 +6,12 @@
 "아직 하지 않은 로드맵 항목"으로 남겨둔 것을 착수하는 것.
 
 키워드 매칭이 느슨해 타 지역 결과가 섞이므로, 응답의 `roadAddr`가 실제로 이 시스템의
-커버리지 지역(대구광역시·경상북도 포항시)으로 시작하는지 반드시 재확인한다 —
-discover_via_juso.py와 동일한 필터.
+커버리지 지역(대구광역시·경상북도 포항시·경상남도 거제시)으로 시작하는지 반드시
+재확인한다 — discover_via_juso.py와 다른 필터(그쪽은 배치 생성 스크립트로 대구·포항
+전용이라 미변경, 여긴 라이브 웹 입력이라 신규 등록 지역을 반영). 2026-08-19 거제시
+추가(FLOOD_SHP_SOURCES) 시 이 하드코딩 목록이 누락되기 쉬운 지점 — SHP는
+config.py 추가만으로 자동 반영되지만(SHP_FILENAME_TO_REGION_CODE 등) 이 문자열
+접두어 필터는 여기서 수동으로 맞춰줘야 한다.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from dataclasses import dataclass
 from climate_risk.config import JUSO_API_KEY
 
 _JUSO_URL = "https://business.juso.go.kr/addrlink/addrLinkApi.do"
-_ALLOWED_PREFIXES = ("대구광역시", "경상북도 포항시")
+_ALLOWED_PREFIXES = ("대구광역시", "경상북도 포항시", "경상남도 거제시")
 _MIN_KEYWORD_LEN = 2  # JUSO API가 1글자 키워드는 결과가 지나치게 넓어져 사실상 무의미
 
 
@@ -50,7 +54,7 @@ def _fetch_juso_json(keyword: str, count: int) -> dict:
 
 
 def search_road_addresses(keyword: str, count: int = 20) -> list[AddressSuggestion]:
-    """키워드로 도로명주소를 검색해 커버리지 지역(대구·포항) 결과만 반환한다.
+    """키워드로 도로명주소를 검색해 커버리지 지역(대구·포항·거제) 결과만 반환한다.
 
     짧은 키워드는 API가 거부하거나 무의미하게 넓은 결과를 주므로 호출 자체를
     생략하고 빈 리스트를 반환한다(불필요한 API 호출 방지).

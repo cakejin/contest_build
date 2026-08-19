@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +76,8 @@ def run_week4_demo(
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
     on_stage: OnStage | None = None,
     target_floor: dict | None = None,
+    historical_start: datetime | None = None,
+    historical_end: datetime | None = None,
 ) -> dict[str, Any]:
     result = run_week3_demo(
         address=address,
@@ -87,6 +90,8 @@ def run_week4_demo(
         n_iterations=n_iterations,
         on_stage=on_stage,
         target_floor=target_floor,
+        historical_start=historical_start,
+        historical_end=historical_end,
     )
     if "error" in result:
         return result

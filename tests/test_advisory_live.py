@@ -103,4 +103,15 @@ def test_unverified_region_mapping_surfaces_in_note(monkeypatch):
     result = live.run_live_query(region_code="47111")  # 포항 — stn_id_verified=False
 
     assert result.stn_id == "138"
-    assert result.stn_id_verified is False
+
+
+def test_geoje_region_maps_to_busan_regional_office_verified(monkeypatch):
+    """2026-08-19 추가 — 거제(48310)는 wrn_met_data.php의 실제 과거 발효 기록(힌남노
+    2022-09-06, REG_ID=L1082200)에서 STN=159로 확인돼 verified=True(포항과 달리
+    추정치가 아님, DEV_LOG.md 참조)."""
+    monkeypatch.setattr(live, "_fetch_kma_json", lambda stn_id: _fake_response([]))
+
+    result = live.run_live_query(region_code="48310")
+
+    assert result.stn_id == "159"
+    assert result.stn_id_verified is True

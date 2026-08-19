@@ -6,7 +6,7 @@ after는 재계산 시점의 신선한 산출값이다(portfolio/recalc.py 참�
 
 `score_before`/`eal_before`는 실제 홍수·건물취약도·시나리오 에이전트를 라이브로 1회
 실행한 결과값이다(scripts/generate_portfolio.py 참조) — 임의로 채운 숫자가 아니다.
-이 값이 `None`인 레코드는 좌표가 SHP 6개 커버리지 밖(`coverage: "OUT_OF_SCOPE"`)이라
+이 값이 `None`인 레코드는 좌표가 SHP 커버리지 밖(`coverage: "OUT_OF_SCOPE"`)이라
 `run_monte_carlo_eal()`이 애초에 EAL을 산출하지 않은 경우다(scenario/eal.py의
 "입력 데이터 불충분" 폴백 그대로) — "커버리지 밖이니 위험 낮음"으로 조용히 숫자를
 채우면 CLAUDE.md 원칙1("데이터 없음≠위험 없음") 위반이라 `None`을 그대로 보존한다

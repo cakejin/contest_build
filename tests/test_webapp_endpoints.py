@@ -150,3 +150,95 @@ def test_address_search_degrades_to_empty_list_on_juso_error(monkeypatch):
 def test_missing_required_query_param_is_422(path):
     res = client.get(path)
     assert res.status_code == 422
+
+
+def test_portfolio_list_exposes_fields_needed_by_picker_only(monkeypatch):
+    """2026-08-19(계속, DEV_LOG.md 참조) — "기존 포트폴리오 조회" 탭용 목록. ltv·balance는
+    고를 때 참고용으로 불필요해 일부러 안 내보낸다(HANDOVER §⑥ 블루라이닝 방지 설계와
+    같은 결 — 화면에 굳이 흘려보낼 이유가 없는 값은 애초에 API 응답에 안 넣는다)."""
+    from climate_risk.portfolio.schema import PortfolioRecord
+
+    fake_records = [
+        PortfolioRecord(
+            collateral_id="COL-001",
+            address="경상북도 포항시 남구 인덕로 27",
+            collateral_type="아파트",
+            balance=300000000.0,
+            collateral_value=500000000.0,
+            ltv=0.6,
+            score_before=55.0,
+            eal_before=1000.0,
+            region_code="47111",
+        )
+    ]
+    monkeypatch.setattr(webapp_app, "load_portfolio", lambda path: fake_records)
+
+    res = client.get("/api/portfolio-list")
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body == [
+        {
+            "collateral_id": "COL-001",
+            "address": "경상북도 포항시 남구 인덕로 27",
+            "collateral_type": "아파트",
+            "region_code": "47111",
+            "collateral_value": 500000000.0,
+        }
+    ]
+    assert "ltv" not in body[0]
+    assert "balance" not in body[0]
+
+
+def test_parse_kst_date_start_of_day():
+    dt = webapp_app._parse_kst_date("2026-07-17")
+    assert dt.isoformat() == "2026-07-17T00:00:00+09:00"
+
+
+def test_assess_without_query_date_uses_live_mode(monkeypatch):
+    """DEV_LOG.md 2026-08-19(계속) — "리플레이/라이브/특정날짜" 드롭다운을 걷어내고
+    query_date 하나로 단순화했다: 날짜 미입력 -> mode="live", historical_start/end=None."""
+    captured = {}
+
+    def fake_run_week4_demo(**kwargs):
+        captured.update(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(webapp_app, "run_week4_demo", fake_run_week4_demo)
+
+    res = client.get(
+        "/api/assess",
+        params={"address": "테스트주소", "collateral_value": "500000000", "region_code": "47111"},
+    )
+
+    assert res.status_code == 200
+    assert captured["mode"] == "live"
+    assert captured["historical_start"] is None
+    assert captured["historical_end"] is None
+
+
+def test_assess_with_query_date_uses_historical_mode_and_24h_window(monkeypatch):
+    """날짜 하나 입력 -> mode="historical", [그 날 00:00, 다음날 00:00) KST 구간으로
+    자동 변환 — 사용자가 시작/종료를 따로 안 넣어도 되게(2026-08-19 사용자 피드백)."""
+    captured = {}
+
+    def fake_run_week4_demo(**kwargs):
+        captured.update(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(webapp_app, "run_week4_demo", fake_run_week4_demo)
+
+    res = client.get(
+        "/api/assess",
+        params={
+            "address": "테스트주소",
+            "collateral_value": "500000000",
+            "region_code": "47111",
+            "query_date": "2022-09-06",
+        },
+    )
+
+    assert res.status_code == 200
+    assert captured["mode"] == "historical"
+    assert captured["historical_start"].isoformat() == "2022-09-06T00:00:00+09:00"
+    assert captured["historical_end"].isoformat() == "2022-09-07T00:00:00+09:00"

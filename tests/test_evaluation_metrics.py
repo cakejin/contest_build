@@ -29,7 +29,7 @@ def test_coverage_gate_metric_golden_set_all_pass():
     result = coverage_gate_metric()
     assert result["failed"] == 0
     assert result["pass_rate"] == 1.0
-    assert result["total"] == 8  # 냉천3 + 신천5
+    assert result["total"] == 12  # 냉천3 + 신천5 + 거제4
 
 
 def test_coverage_uncertain_point_metric_clean():

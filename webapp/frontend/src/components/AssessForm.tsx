@@ -1,25 +1,26 @@
 import type { FormEvent } from 'react'
-import type { RegionPreset, ResolvedRegion } from '../types'
+import type { InputMode, PortfolioListItem, ResolvedRegion } from '../types'
 import { Card } from './Card'
 import { AddressField } from './AddressField'
+import { PortfolioPicker } from './PortfolioPicker'
 
 interface AssessFormProps {
-  presets: RegionPreset[]
-  presetIndex: number
+  inputMode: InputMode
   address: string
   collateralValue: string
   floorType: string
   floorNo: string
   detectedRegion: ResolvedRegion | null
-  useReplay: boolean
+  queryDate: string
   submitting: boolean
-  onPresetChange: (index: number) => void
+  onInputModeChange: (mode: InputMode) => void
   onAddressChange: (value: string) => void
+  onPortfolioSelect: (item: PortfolioListItem) => void
   onRegionResolved: (region: ResolvedRegion | null) => void
   onCollateralValueChange: (value: string) => void
   onFloorTypeChange: (value: string) => void
   onFloorNoChange: (value: string) => void
-  onUseReplayChange: (value: boolean) => void
+  onQueryDateChange: (value: string) => void
   onSubmit: () => void
 }
 
@@ -27,15 +28,7 @@ const labelClass = 'block text-xs font-semibold text-muted mt-3.5 mb-1.5 trackin
 const inputClass =
   'w-full py-2.5 px-3 border border-border rounded-control text-[13px] [font-family:inherit] text-ink bg-surface transition-[border-color,box-shadow] duration-150 ease-out focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(0,168,143,0.16)]'
 
-function RegionStatus({
-  detectedRegion,
-  useReplay,
-  onUseReplayChange,
-}: {
-  detectedRegion: ResolvedRegion | null
-  useReplay: boolean
-  onUseReplayChange: (value: boolean) => void
-}) {
+function RegionStatus({ detectedRegion }: { detectedRegion: ResolvedRegion | null }) {
   if (!detectedRegion) return null
 
   if (!detectedRegion.resolved) {
@@ -53,37 +46,40 @@ function RegionStatus({
   return (
     <div className="text-[11px] text-muted mt-1.5">
       감지된 지역: <span className="font-semibold text-ink">{detectedRegion.region_name}</span>
-      {detectedRegion.curated_replay ? (
-        <label className="ml-2 inline-flex items-center gap-1 cursor-pointer">
-          <input type="checkbox" checked={useReplay} onChange={(e) => onUseReplayChange(e.target.checked)} />
-          {detectedRegion.curated_replay.label}로 재생
-        </label>
-      ) : detectedRegion.live_supported ? (
-        <span className="ml-2">— 과거 재연 데이터가 없어 실시간 특보 조회만 가능해요</span>
-      ) : (
-        <span className="ml-2">— 특보 연동 대상 지역이 아니에요</span>
+      {detectedRegion.curated_replay && (
+        <span className="ml-1">— 💡 {detectedRegion.curated_replay.label} 관련 날짜를 조회해보세요</span>
+      )}
+      {!detectedRegion.curated_replay && !detectedRegion.live_supported && (
+        <span className="ml-1">— 특보 연동 대상 지역이 아니에요</span>
       )}
     </div>
   )
 }
 
+const tabButtonClass = (active: boolean) =>
+  `flex-1 py-2 px-3 text-[13px] font-semibold rounded-control border transition-colors duration-150 ease-out cursor-pointer ${
+    active
+      ? 'bg-accent text-white border-accent'
+      : 'bg-surface text-muted border-border hover:bg-surface-alt'
+  }`
+
 export function AssessForm({
-  presets,
-  presetIndex,
+  inputMode,
   address,
   collateralValue,
   floorType,
   floorNo,
   detectedRegion,
-  useReplay,
+  queryDate,
   submitting,
-  onPresetChange,
+  onInputModeChange,
   onAddressChange,
+  onPortfolioSelect,
   onRegionResolved,
   onCollateralValueChange,
   onFloorTypeChange,
   onFloorNoChange,
-  onUseReplayChange,
+  onQueryDateChange,
   onSubmit,
 }: AssessFormProps) {
   const handleSubmit = (e: FormEvent) => {
@@ -94,32 +90,52 @@ export function AssessForm({
   return (
     <Card icon="result" title="담보 평가">
       <form onSubmit={handleSubmit}>
-        <label htmlFor="preset" className={labelClass}>
-          예시 주소로 채우기
-        </label>
-        <select
-          id="preset"
-          className={inputClass}
-          value={presetIndex}
-          onChange={(e) => onPresetChange(Number(e.target.value))}
-        >
-          {presets.map((p, i) => (
-            <option key={p.id} value={i}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={tabButtonClass(inputMode === 'new')}
+            onClick={() => onInputModeChange('new')}
+          >
+            신규 담보 조회
+          </button>
+          <button
+            type="button"
+            className={tabButtonClass(inputMode === 'portfolio')}
+            onClick={() => onInputModeChange('portfolio')}
+          >
+            기존 포트폴리오 조회
+          </button>
+        </div>
 
         <label htmlFor="address" className={labelClass}>
-          담보 도로명주소
+          {inputMode === 'new' ? '담보 도로명주소' : '기존 담보(포트폴리오 316건 중 선택)'}
         </label>
-        <AddressField
-          value={address}
-          inputClassName={inputClass}
-          onChange={onAddressChange}
-          onRegionResolved={onRegionResolved}
+        {inputMode === 'new' ? (
+          <AddressField
+            value={address}
+            inputClassName={inputClass}
+            onChange={onAddressChange}
+            onRegionResolved={onRegionResolved}
+          />
+        ) : (
+          <PortfolioPicker
+            inputClassName={inputClass}
+            onSelect={onPortfolioSelect}
+            onRegionResolved={onRegionResolved}
+          />
+        )}
+        <RegionStatus detectedRegion={detectedRegion} />
+
+        <label htmlFor="query-date" className={labelClass}>
+          조회 날짜(선택 — 비워두면 지금 시점 특보를 조회해요)
+        </label>
+        <input
+          id="query-date"
+          type="date"
+          className={inputClass}
+          value={queryDate}
+          onChange={(e) => onQueryDateChange(e.target.value)}
         />
-        <RegionStatus detectedRegion={detectedRegion} useReplay={useReplay} onUseReplayChange={onUseReplayChange} />
 
         <label htmlFor="collateral-value" className={labelClass}>
           담보가액(원)
