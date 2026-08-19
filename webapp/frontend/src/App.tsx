@@ -4,7 +4,7 @@ import { AssessForm } from './components/AssessForm'
 import { ProgressList } from './components/ProgressList'
 import { ResultSection } from './components/ResultSection'
 import { fetchRegionPresets, startAssessStream } from './api'
-import type { AssessResult, InputMode, PortfolioListItem, ProgressItem, ResolvedRegion } from './types'
+import type { AssessResult, InputMode, PortfolioListItem, ProgressItem, ResolvedRegion, SubmittedMeta } from './types'
 
 function App() {
   // 2026-08-19(계속, DEV_LOG.md 참조) — "신규 담보 조회"(자유입력)와 "기존 포트폴리오
@@ -23,6 +23,10 @@ function App() {
   // 그 감지 결과가 /api/assess로 보낼 region_code의 유일한 출처다(담보 평가↔포트폴리오
   // 알림 불일치 버그의 근본 수정).
   const [detectedRegion, setDetectedRegion] = useState<ResolvedRegion | null>(null)
+  // "기존 포트폴리오 조회"에서 고른 담보ID — 결과 대시보드 상단에 명시하기 위한 용도로만
+  // 쓴다("신규 담보 조회"는 애초에 포트폴리오 담보ID가 없으니 null).
+  const [selectedCollateralId, setSelectedCollateralId] = useState<string | null>(null)
+  const [submittedMeta, setSubmittedMeta] = useState<SubmittedMeta | null>(null)
   // 2026-08-19(계속, DEV_LOG.md 참조) — "리플레이/라이브/특정날짜" 3택 드롭다운은
   // 사용자 피드백으로 제거했다. 날짜 하나만 있으면 그 날짜의 과거 특보를, 비우면
   // 지금 시점 라이브 특보를 보여준다 — mode 판단은 백엔드가 이 값 유무로 알아서 한다.
@@ -48,11 +52,13 @@ function App() {
     setAddress('')
     setCollateralValue('')
     setDetectedRegion(null)
+    setSelectedCollateralId(null)
   }
 
   const handlePortfolioSelect = (item: PortfolioListItem) => {
     setAddress(item.address)
     setCollateralValue(String(item.collateral_value))
+    setSelectedCollateralId(item.collateral_id)
   }
 
   const handleSubmit = () => {
@@ -62,6 +68,11 @@ function App() {
     setConnectionError(false)
     setResult(null)
     setProgressItems([])
+    setSubmittedMeta({
+      address,
+      collateralId: inputMode === 'portfolio' ? selectedCollateralId : null,
+      queryDate,
+    })
 
     closeStreamRef.current = startAssessStream(
       {
@@ -127,7 +138,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <ResultSection result={result} loading={loading} />
+            <ResultSection result={result} loading={loading} meta={submittedMeta} />
           )}
         </section>
       </main>

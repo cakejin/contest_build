@@ -48,6 +48,14 @@ export interface PortfolioListItem {
 // (사용자 피드백, DEV_LOG.md 2026-08-19 참조 — 이전엔 이 구분이 화면에 안 보였다).
 export type InputMode = 'new' | 'portfolio'
 
+// 결과 대시보드 상단에 "지금 보고 있는 게 어떤 담보인지" 명시하기 위한 스냅샷
+// (사용자 피드백) — /api/assess 응답에 없는 값이라 제출 시점 폼 상태를 그대로 들고 있는다.
+export interface SubmittedMeta {
+  address: string
+  collateralId: string | null
+  queryDate: string
+}
+
 export interface FloodResult {
   coverage: string
   tier: string
