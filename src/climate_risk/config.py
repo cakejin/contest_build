@@ -152,6 +152,11 @@ REGION_CODE_TO_KMA_STN_ID: dict[str, tuple[str, bool]] = {
 PORTFOLIO_DATA_PATH = CURATED_DATA_DIR / "portfolio" / "synthetic_portfolio.json"
 AUDIT_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "reviewer_ack_log.jsonl"
 ALERT_QUEUE_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "alert_queue_log.jsonl"
+# 2026-08-18 추가(DEV_LOG.md 참조) — 라이브 모드 기상청 API 조회 결과를 append-only로
+# 적재한다. 기상청 API 자체가 "지금 시점"만 조회 가능(과거 조회 불가, advisory/live.py
+# 참조)해서, 이 로그가 쌓여야만 나중에 "이 날짜에 이 지역에 실제로 무슨 특보가 있었는지"를
+# 재구성할 수 있다 — 지금 당장 이 로그를 조회하는 UI는 없다(축적만 시작).
+ADVISORY_LIVE_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "advisory_live_log.jsonl"
 
 # region_code 역조회(SHP 절대경로 문자열 -> region_code) — portfolio/geocode_cache.py가 홍수
 # 에이전트 결과(source_shp_file)에서 포트폴리오 필터링용 region_code를 유도할 때 쓴다. 하드코딩

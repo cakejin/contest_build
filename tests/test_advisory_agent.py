@@ -56,19 +56,21 @@ def test_replay_mode_region_mismatch_returns_no_curated_data(tmp_path):
     assert output.active_warnings == []
 
 
-def test_live_mode_unmapped_region_returns_no_curated_data_status(monkeypatch):
+def test_live_mode_unmapped_region_returns_no_curated_data_status(monkeypatch, tmp_path):
     def _boom(region_code):
         raise AssertionError("매핑 없는 지역은 fetch까지 가면 안 됨")
 
     monkeypatch.setattr(live, "_fetch_kma_json", _boom)
 
-    output = run_advisory_agent(region_code="00000", mode="live")
+    output = run_advisory_agent(
+        region_code="00000", mode="live", live_log_path=tmp_path / "live_log.jsonl"
+    )
 
     assert output.status == STATUS_NO_CURATED_DATA_FOR_REGION
     assert output.trigger_event is False
 
 
-def test_live_mode_upstream_error_returns_explicit_status_not_silent_false(monkeypatch):
+def test_live_mode_upstream_error_returns_explicit_status_not_silent_false(monkeypatch, tmp_path):
     """API 호출 자체가 실패해도 조용히 '안전'으로 처리하지 않고 명시적 상태를 반환한다
     (설계원칙1 "데이터 없음≠위험 없음"과 같은 정신)."""
 
@@ -77,13 +79,15 @@ def test_live_mode_upstream_error_returns_explicit_status_not_silent_false(monke
 
     monkeypatch.setattr(live, "_fetch_kma_json", _raise)
 
-    output = run_advisory_agent(region_code="27260", mode="live")
+    output = run_advisory_agent(
+        region_code="27260", mode="live", live_log_path=tmp_path / "live_log.jsonl"
+    )
 
     assert output.status == STATUS_LIVE_UPSTREAM_ERROR
     assert output.trigger_event is False
 
 
-def test_live_mode_wires_real_events_into_trigger_event(monkeypatch):
+def test_live_mode_wires_real_events_into_trigger_event(monkeypatch, tmp_path):
     monkeypatch.setattr(
         live,
         "_fetch_kma_json",
@@ -106,13 +110,74 @@ def test_live_mode_wires_real_events_into_trigger_event(monkeypatch):
         },
     )
 
-    output = run_advisory_agent(region_code="27260", mode="live")
+    output = run_advisory_agent(
+        region_code="27260", mode="live", live_log_path=tmp_path / "live_log.jsonl"
+    )
 
     assert output.status == STATUS_OK
     assert output.trigger_event is True
     assert output.mode == "live"
     assert len(output.active_warnings) == 1
     assert output.source_id == "advisory:live:kma:stnId=143"
+
+
+def test_live_mode_appends_query_to_live_log(monkeypatch, tmp_path):
+    """HANDOVER §⑧ 이후 논의(DEV_LOG.md 2026-08-18) — 라이브 조회는 매번 로그에 남아야
+    나중에 날짜 기반 리플레이를 만들 원자료가 쌓인다."""
+    from climate_risk.advisory.live_log import read_live_advisory_log
+
+    monkeypatch.setattr(
+        live,
+        "_fetch_kma_json",
+        lambda stn_id: {
+            "response": {
+                "header": {"resultCode": "00", "resultMsg": "NORMAL_SERVICE"},
+                "body": {
+                    "items": {
+                        "item": [
+                            {
+                                "stnId": "143",
+                                "title": "[특보] 제08-43호 : 2026.08.12.06:00 / 풍랑주의보 발표 (*)",
+                                "tmFc": 202608120600,
+                                "tmSeq": 43,
+                            }
+                        ]
+                    }
+                },
+            }
+        },
+    )
+    log_path = tmp_path / "live_log.jsonl"
+
+    run_advisory_agent(region_code="27260", mode="live", live_log_path=log_path)
+
+    entries = read_live_advisory_log(log_path)
+    assert len(entries) == 1
+    assert entries[0].region_code == "27260"
+    assert entries[0].trigger_event is True
+    assert entries[0].status == STATUS_OK
+    assert len(entries[0].events) == 1
+
+
+def test_live_mode_upstream_error_is_also_logged(monkeypatch, tmp_path):
+    """조회가 실패해도 "실패했다"는 사실 자체를 정직하게 로그에 남긴다(설계원칙1과 같은 정신)."""
+    from climate_risk.advisory.live_log import read_live_advisory_log
+
+    def _raise(stn_id):
+        raise TimeoutError("network down")
+
+    monkeypatch.setattr(live, "_fetch_kma_json", _raise)
+    log_path = tmp_path / "live_log.jsonl"
+
+    run_advisory_agent(region_code="27260", mode="live", live_log_path=log_path)
+
+    entries = read_live_advisory_log(log_path)
+    assert len(entries) == 1
+    # 로그는 advisory_agent가 번역한 상태(STATUS_LIVE_UPSTREAM_ERROR)가 아니라
+    # advisory/live.py의 원시 LiveQueryResult.status를 그대로 남긴다 — 원자료 보존.
+    assert entries[0].status == live.STATUS_UPSTREAM_ERROR
+    assert entries[0].trigger_event is False
+    assert entries[0].events == []
 
 
 def test_unknown_mode_raises_value_error(tmp_path):

@@ -7,6 +7,33 @@ export interface RegionPreset {
   sample_address: string
 }
 
+// HANDOVER 논의(DEV_LOG.md 2026-08-18) — 지역 프리셋이 아니라 실제 입력 주소를
+// 지오코딩해 감지한 지역. 담보 평가와 포트폴리오 알림이 항상 같은 지역을 가리키게
+// 하기 위해 이 값이 /api/assess로 보낼 region_code/mode/timeline_path의 유일한 출처다.
+export interface CuratedReplay {
+  mode: string
+  timeline_path: string | null
+  label: string
+}
+
+export interface ResolvedRegion {
+  resolved: boolean
+  reason?: string
+  matched_address?: string
+  lat?: number
+  lon?: number
+  coverage?: string
+  region_code?: string | null
+  region_name?: string | null
+  live_supported?: boolean
+  curated_replay?: CuratedReplay | null
+}
+
+export interface AddressSuggestion {
+  road_address: string
+  building_name: string | null
+}
+
 export interface FloodResult {
   coverage: string
   tier: string

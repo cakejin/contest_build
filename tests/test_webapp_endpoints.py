@@ -1,0 +1,152 @@
+"""webapp/app.py의 신규 엔드포인트(/api/resolve-region, /api/address-search) 회귀
+테스트 — DEV_LOG.md 2026-08-18 "주소-프리셋 디커플링" 논의의 실체.
+
+이 파일들은 `webapp/`이 파이썬 패키지가 아니라 `python -m uvicorn webapp.app:app`으로만
+실행되던 모듈이라, 테스트에서 직접 임포트하려면 그 디렉터리를 sys.path에 넣어야 한다
+(webapp/app.py 자신도 src/를 같은 방식으로 넣는다 — 동일 패턴).
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+_WEBAPP_DIR = Path(__file__).resolve().parents[1] / "webapp"
+if str(_WEBAPP_DIR) not in sys.path:
+    sys.path.insert(0, str(_WEBAPP_DIR))
+
+import app as webapp_app  # noqa: E402
+from climate_risk.agents.flood_agent import FloodAgentOutput  # noqa: E402
+from climate_risk.config import FLOOD_SHP_SOURCES  # noqa: E402
+from climate_risk.geocoding import juso as juso_module  # noqa: E402
+from climate_risk.geocoding.vworld import GeocodedAddress  # noqa: E402
+from climate_risk.gis.query import FloodRiskResult  # noqa: E402
+
+client = TestClient(webapp_app.app)
+
+_FAKE_GEOCODED = GeocodedAddress(
+    lat=35.98768, lon=129.39979, refined_text="경상북도 포항시 남구 인덕로 27", input_address="포항 남구 인덕로 27"
+)
+
+
+def _flood_output(source_shp_file: str | None, coverage: str = "IN_SCOPE") -> FloodAgentOutput:
+    return FloodAgentOutput(
+        flood=FloodRiskResult(
+            coverage=coverage,
+            in_polygon=True,
+            tier="내부",
+            distance_to_polygon_m=0.0,
+            freq_label="MAX",
+            river_name="냉천",
+            region_name="포항시 남구",
+            source_shp_file=source_shp_file,
+            license="공공누리4유형",
+            methodology_disclaimer="test",
+            uncertain=None,
+        ),
+        source_id="flood:test.shp",
+        field_sources={},
+    )
+
+
+def test_resolve_region_returns_unresolved_on_geocode_failure(monkeypatch):
+    monkeypatch.setattr(webapp_app, "geocode_road_address", lambda address: None)
+
+    res = client.get("/api/resolve-region", params={"address": "존재하지않는주소"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["resolved"] is False
+    assert "reason" in body
+
+
+def test_resolve_region_derives_region_code_and_curated_replay(monkeypatch):
+    """HANDOVER §③ 힌남노 프리셋과 동일한 지역(포항 남구, 47111)이 실제 SHP 파일명 매핑을
+    통해 자동 감지되는지 — 담보 평가↔포트폴리오 알림 불일치 버그 수정의 핵심 경로."""
+    pohang_shp = str(next(src.path for src in FLOOD_SHP_SOURCES if src.region_code == "47111"))
+
+    monkeypatch.setattr(webapp_app, "geocode_road_address", lambda address: _FAKE_GEOCODED)
+    monkeypatch.setattr(webapp_app, "run_flood_agent", lambda lat, lon, **kwargs: _flood_output(pohang_shp))
+
+    res = client.get("/api/resolve-region", params={"address": "경상북도 포항시 남구 인덕로 27"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["resolved"] is True
+    assert body["region_code"] == "47111"
+    assert body["coverage"] == "IN_SCOPE"
+    assert body["live_supported"] is True
+    assert body["curated_replay"]["mode"] == "replay"
+    assert "힌남노" in body["curated_replay"]["label"]
+
+
+def test_resolve_region_region_without_curated_replay_still_reports_live_supported(monkeypatch):
+    """대구 북구(27230)는 SHP 커버리지·라이브 매핑은 있지만 큐레이션 리플레이가 없다
+    (DEV_LOG.md 2026-08-18) — curated_replay는 None, live_supported는 True여야 한다."""
+    monkeypatch.setattr(webapp_app, "geocode_road_address", lambda address: _FAKE_GEOCODED)
+    monkeypatch.setattr(
+        webapp_app,
+        "run_flood_agent",
+        lambda lat, lon, **kwargs: _flood_output("dummy_bukgu.shp"),
+    )
+    monkeypatch.setitem(webapp_app.SHP_FILENAME_TO_REGION_CODE, "dummy_bukgu.shp", "27230")
+
+    res = client.get("/api/resolve-region", params={"address": "대구광역시 북구 침산로 10"})
+
+    body = res.json()
+    assert body["region_code"] == "27230"
+    assert body["live_supported"] is True
+    assert body["curated_replay"] is None
+
+
+def test_resolve_region_out_of_scope_coverage(monkeypatch):
+    monkeypatch.setattr(webapp_app, "geocode_road_address", lambda address: _FAKE_GEOCODED)
+    monkeypatch.setattr(
+        webapp_app, "run_flood_agent", lambda lat, lon, **kwargs: _flood_output(None, coverage="OUT_OF_SCOPE")
+    )
+
+    res = client.get("/api/resolve-region", params={"address": "아무데나"})
+
+    body = res.json()
+    assert body["resolved"] is True
+    assert body["coverage"] == "OUT_OF_SCOPE"
+    assert body["region_code"] is None
+    assert body["curated_replay"] is None
+
+
+def test_address_search_proxies_and_filters(monkeypatch):
+    def fake_search(keyword, count=20):
+        from climate_risk.geocoding.juso import AddressSuggestion
+
+        return [
+            AddressSuggestion(road_address="대구광역시 북구 침산로 10", building_name="테스트빌라"),
+        ]
+
+    monkeypatch.setattr(webapp_app, "search_road_addresses", fake_search)
+
+    res = client.get("/api/address-search", params={"keyword": "침산로"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body == [{"road_address": "대구광역시 북구 침산로 10", "building_name": "테스트빌라"}]
+
+
+def test_address_search_degrades_to_empty_list_on_juso_error(monkeypatch):
+    def _raise(keyword, count=20):
+        raise juso_module.JusoSearchError("키 만료")
+
+    monkeypatch.setattr(webapp_app, "search_road_addresses", _raise)
+
+    res = client.get("/api/address-search", params={"keyword": "침산로"})
+
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+@pytest.mark.parametrize("path", ["/api/resolve-region", "/api/address-search"])
+def test_missing_required_query_param_is_422(path):
+    res = client.get(path)
+    assert res.status_code == 422

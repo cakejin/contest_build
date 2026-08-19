@@ -22,13 +22,18 @@ from fastapi import FastAPI, Query  # noqa: E402
 from fastapi.responses import StreamingResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
+from climate_risk.agents.flood_agent import run_flood_agent  # noqa: E402
 from climate_risk.config import (  # noqa: E402
     DAEGU_SUSEONG_2026_TIMELINE_PATH,
     DEFAULT_EAL_ITERATIONS,
     DEFAULT_EAL_SEED,
     HINNAMNO_TIMELINE_PATH,
     PORTFOLIO_DATA_PATH,
+    REGION_CODE_TO_KMA_STN_ID,
+    SHP_FILENAME_TO_REGION_CODE,
 )
+from climate_risk.geocoding.juso import JusoSearchError, search_road_addresses  # noqa: E402
+from climate_risk.geocoding.vworld import geocode_road_address  # noqa: E402
 from climate_risk.graph.week4_demo import run_week4_demo  # noqa: E402
 
 app = FastAPI(title="담보 기후리스크 여신심사 AI — 데모")
@@ -76,6 +81,58 @@ _REGION_PRESETS: list[dict[str, Any]] = [
 @app.get("/api/regions")
 def get_regions() -> list[dict[str, Any]]:
     return _REGION_PRESETS
+
+
+# region_code -> 큐레이션된 리플레이 프리셋(있으면). "지역 프리셋" 드롭다운이 미리 정해준
+# region_code를 프론트가 신뢰하던 것을, 2026-08-18 설계 논의(DEV_LOG.md 참조) 이후로는
+# 입력 주소를 지오코딩해 실제로 감지한 region_code 기준으로 뒤집었다 — _REGION_PRESETS를
+# 새 진실의 원천으로 다시 만들지 않고 그대로 재사용(단일 소스 유지).
+_CURATED_REPLAY_BY_REGION: dict[str, dict[str, Any]] = {
+    p["region_code"]: {"mode": p["mode"], "timeline_path": p["timeline_path"], "label": p["label"]}
+    for p in _REGION_PRESETS
+    if p["mode"] == "replay"
+}
+
+
+@app.get("/api/resolve-region")
+def resolve_region(address: str) -> dict[str, Any]:
+    """주소 입력창에 실제로 입력된 주소를 지오코딩→홍수 에이전트로 region_code를
+    감지한다 — "지역 프리셋"에 종속됐던 region_code를 실제 주소 기준으로 뒤집어,
+    담보 평가 결과와 포트폴리오 알림 섹션이 항상 같은 지역을 가리키게 한다
+    (DEV_LOG.md 2026-08-18 "불일치 버그" 참조). run_flood_agent는 이미 로딩된 SHP
+    캐시를 재사용하므로(query_caching) 이 호출이 추가로 콜드로딩을 유발하지 않는다."""
+    geocoded = geocode_road_address(address)
+    if geocoded is None:
+        return {"resolved": False, "reason": "주소 인식 실패 — 주소를 다시 확인해 주세요"}
+
+    flood = run_flood_agent(geocoded.lat, geocoded.lon)
+    region_code = SHP_FILENAME_TO_REGION_CODE.get(flood.flood.source_shp_file or "")
+
+    return {
+        "resolved": True,
+        "matched_address": geocoded.refined_text,
+        "lat": geocoded.lat,
+        "lon": geocoded.lon,
+        "coverage": flood.flood.coverage,
+        "region_code": region_code,
+        "region_name": flood.flood.region_name,
+        # 라이브 모드는 6개 커버리지 구 전부 가능(REGION_CODE_TO_KMA_STN_ID가 이미
+        # 6개 다 매핑돼 있음, DEV_LOG.md 2026-08-18 참조) — 리플레이만 2곳으로 제한적.
+        "live_supported": region_code in REGION_CODE_TO_KMA_STN_ID,
+        "curated_replay": _CURATED_REPLAY_BY_REGION.get(region_code or ""),
+    }
+
+
+@app.get("/api/address-search")
+def address_search(keyword: str) -> list[dict[str, Any]]:
+    """도로명주소 자동완성 — JUSO API 프록시(대구·포항 커버리지 지역만 필터링).
+    JUSO 키 만료 등으로 실패해도 자동완성은 부가기능이라 페이지 자체를 죽이지 않고
+    빈 목록으로 조용히 degrade한다."""
+    try:
+        suggestions = search_road_addresses(keyword)
+    except JusoSearchError:
+        return []
+    return [{"road_address": s.road_address, "building_name": s.building_name} for s in suggestions]
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:

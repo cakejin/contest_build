@@ -1,7 +1,20 @@
-import type { AssessResult, ProgressEventPayload, RegionPreset } from './types'
+import type { AddressSuggestion, AssessResult, ProgressEventPayload, RegionPreset, ResolvedRegion } from './types'
 
 export async function fetchRegionPresets(): Promise<RegionPreset[]> {
   const res = await fetch('/api/regions')
+  return res.json()
+}
+
+/** 입력 주소를 지오코딩→홍수 에이전트로 region_code를 감지한다(디바운스는 호출부 책임). */
+export async function resolveRegion(address: string): Promise<ResolvedRegion> {
+  const res = await fetch(`/api/resolve-region?address=${encodeURIComponent(address)}`)
+  return res.json()
+}
+
+/** 도로명주소 자동완성 — 실패해도 부가기능이라 빈 배열로 조용히 degrade. */
+export async function searchAddress(keyword: string): Promise<AddressSuggestion[]> {
+  const res = await fetch(`/api/address-search?keyword=${encodeURIComponent(keyword)}`)
+  if (!res.ok) return []
   return res.json()
 }
 

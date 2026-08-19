@@ -20,9 +20,10 @@ from climate_risk.advisory.live import (
     STATUS_UPSTREAM_ERROR as _LIVE_STATUS_UPSTREAM_ERROR,
     run_live_query,
 )
+from climate_risk.advisory.live_log import append_live_query_log
 from climate_risk.advisory.replay import replay_timeline
 from climate_risk.advisory.schema import AdvisoryEvent
-from climate_risk.config import HINNAMNO_TIMELINE_PATH
+from climate_risk.config import ADVISORY_LIVE_LOG_PATH, HINNAMNO_TIMELINE_PATH
 
 _TRIGGER_EVENT_TYPES = {"특보", "재난문자"}
 
@@ -55,11 +56,16 @@ def run_advisory_agent(
     mode: str = "replay",
     timeline_path: Path = HINNAMNO_TIMELINE_PATH,
     as_of: datetime | None = None,
+    # 2026-08-18 추가(DEV_LOG.md 참조) — 라이브 조회 결과를 append-only로 적재해 나중에
+    # 날짜 기반 리플레이를 만들 수 있는 원자료를 쌓는다. replay 모드는 이미 정적 큐레이션
+    # 데이터라 로그 대상이 아니다.
+    live_log_path: Path = ADVISORY_LIVE_LOG_PATH,
 ) -> AdvisoryAgentOutput:
     if mode == "live":
         live_result = run_live_query(region_code)
 
         if live_result.status == _LIVE_STATUS_UNKNOWN_REGION:
+            append_live_query_log(region_code, live_result, trigger_event=False, log_path=live_log_path)
             return AdvisoryAgentOutput(
                 active_warnings=[],
                 trigger_event=False,
@@ -70,6 +76,7 @@ def run_advisory_agent(
                 source_id="advisory:live:unmapped_region",
             )
         if live_result.status == _LIVE_STATUS_UPSTREAM_ERROR:
+            append_live_query_log(region_code, live_result, trigger_event=False, log_path=live_log_path)
             return AdvisoryAgentOutput(
                 active_warnings=[],
                 trigger_event=False,
@@ -82,6 +89,7 @@ def run_advisory_agent(
 
         assert live_result.status == _LIVE_STATUS_OK
         trigger_event = any(event.event_type in _TRIGGER_EVENT_TYPES for event in live_result.events)
+        append_live_query_log(region_code, live_result, trigger_event=trigger_event, log_path=live_log_path)
         return AdvisoryAgentOutput(
             active_warnings=[_to_active_warning(e) for e in live_result.events],
             trigger_event=trigger_event,

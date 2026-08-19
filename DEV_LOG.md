@@ -138,4 +138,35 @@ HANDOVER.md의 가정·설계가 실제 구현 중 다르게 확인되면 여기
 - `webapp/frontend`: `AssessForm`에 층 유형·층수 입력 추가(미입력 시 기존 동작), `BuildingCard`에 층별 리스크 등급(고위험/중위험/저위험) 표시 섹션 추가. `tsc --noEmit`·`npm run build` 통과, `webapp/static/` 재생성 완료.
 - `memo/source_registry.py`: `building.floor_exposure`가 있으면 기존 `building.source_id` 레코드의 `value_repr`에 `floor_risk_tier`/`basis`/`reason`을 병기(새 source_id를 만들지 않음) — 메모 에이전트가 같은 인용 규율로 층별 리스크 문장을 생성할 수 있게 됨(HANDOVER §⑧ "메모 에이전트" 통합점 반영).
 
-**영향**: `portfolio/recalc.py`(포트폴리오 배치 재계산)는 의도적으로 그대로 뒀다 — 합성 포트폴리오 레코드에 층수 데이터가 없어 `target_floor`를 넘길 입력 자체가 없고, 미입력이므로 기존 배치 결과에 영향 없음(층수 필드를 포트폴리오 스키마에 추가하는 것은 별도 로드맵). 신규/수정 테스트 8개(`test_pipeline_smoke.py` 2개 신규+1개 이름변경, `test_week3_demo_smoke.py` 1개 신규, `test_memo_source_registry.py` 1개 신규) 포함 `pytest tests/ -q` 170개 전체 통과(800초). 커밋은 사용자 요청 대기 중.
+**영향**: `portfolio/recalc.py`(포트폴리오 배치 재계산)는 의도적으로 그대로 뒀다 — 합성 포트폴리오 레코드에 층수 데이터가 없어 `target_floor`를 넘길 입력 자체가 없고, 미입력이므로 기존 배치 결과에 영향 없음(층수 필드를 포트폴리오 스키마에 추가하는 것은 별도 로드맵). 신규/수정 테스트 8개(`test_pipeline_smoke.py` 2개 신규+1개 이름변경, `test_week3_demo_smoke.py` 1개 신규, `test_memo_source_registry.py` 1개 신규) 포함 `pytest tests/ -q` 170개 전체 통과(800초). 커밋 완료(`bc05504`).
+
+## 2026-08-18 — 웹 데모 사용 중 발견한 설계 공백 2건 — "지역 프리셋" UX 설계 논의 정리
+
+로컬 서버(uvicorn)로 실제 데모 화면을 써보던 중 사용자가 두 가지를 지적했다. HANDOVER.md에 명시된 계획은 아니고 웹 데모(§⑤ 기능5 "포트폴리오 익스포저 지도 대시보드")를 실제로 만지면서 나온 UX 설계 이슈라 여기 정리한다.
+
+**1) 오래된 프로세스로 인한 일시적 장애(참고용, 코드 버그 아님)**: 서버가 `insurance_covered` 필드 추가(오전 커밋 9bd3901) 이전부터 떠 있던 프로세스(2026-08-12 시작)였고, uvicorn을 `--reload` 없이 띄워서 코드가 바뀌어도 재시작 전까진 반영이 안 됐다 — 그래서 최신 데이터(JSON엔 필드 있음)를 옛날 클래스 정의(필드 모름)에 넣으려다 `TypeError`가 났다. 프로세스 재시작으로 해결, 코드 문제 아님. 데모 진행자가 로컬 서버를 코드 변경 후 재시작 안 하면 재발할 수 있다는 점만 기록.
+
+**2) "지역 프리셋" 드롭다운이 3개뿐인 이유와 구조적 불일치 — 실제 설계 문제**:
+- **왜 3개뿐인가**: 포트폴리오·SHP 커버리지는 6개 구(포항 남구·대구 남구·중구·수성구·동구·북구) 전부 있지만, "특보 리플레이" 프리셋은 **사람이 뉴스를 찾아 손으로 정리한 큐레이션 타임라인(source_url 필수)이 있는 지역만** 만들 수 있다 — 지금 존재하는 건 힌남노(포항 남구)·대구 수성구 2026 집중호우 2건뿐(DEV_LOG 2026-08-12 항목). 나머지 4개 구는 단건 주소 조회는 이미 되지만(SHP 데이터 있음) "재생할 과거 사건 기록"이 없어 리플레이 프리셋이 없다. 라이브 모드는 기상청 API로 "지금 이 순간"만 조회하고 결과를 저장하지 않으므로, 과거를 재구성할 방법 자체가 원래 없었다(`advisory/live.py` — 기상청 API가 6일 초과 과거 조회를 애초에 거부함, 2026-08-12 실측 확인).
+- **불일치 버그**: 담보 평가(침수·건물·EAL) 결과는 주소창 텍스트를 그대로 지오코딩해 계산하므로 프리셋과 무관하게 동작하지만, 포트폴리오 재심사 알림 섹션은 프리셋의 `region_code`만 보고 주소창 내용을 전혀 참조하지 않는다 — 프리셋을 "포항 힌남노"로 둔 채 대구 주소를 입력하면 위 결과는 대구 기준, 아래 포트폴리오 알림은 포항 기준으로 나오는 모순이 생긴다.
+- **사용자 제안(채택)**: 라이브 모드 조회 결과를 매번 로그로 적재해두면(현재는 안 함) 나중에 "날짜+지역"으로 과거 특보를 재구성할 수 있어, 손으로 큐레이션한 2건짜리 하드코딩 프리셋 목록 대신 "날짜 선택 → 그 시점 실제 발효 특보 자동 매칭" 방식으로 갈 수 있다는 아이디어 — 정확한 방향이라 채택. 다만 지금 당장은 로그가 비어있어(시스템이 실제로 운영된 적이 없어) 3번(날짜 기반 UI)은 로그가 쌓인 뒤에나 의미가 있다.
+
+**합의된 착수 순서**(이번 세션에서 순차 구현):
+1. 라이브 특보 조회 결과를 append-only 로그로 적재(`advisory/live_log.py` 신규) — 미래의 날짜 기반 재생을 위한 축적 시작
+2. 주소 입력을 프리셋에서 완전히 디커플링 — 입력된 주소를 지오코딩→region_code 자동 감지해 담보 평가·포트폴리오 알림이 항상 같은 지역 기준으로 일관되게 동작하도록 수정 + 도로명주소 자동완성(JUSO API, `discover_via_juso.py`가 이미 검증해둔 키·엔드포인트 재사용) 붙이기
+3. (2에서 새로 생긴 region 자동감지 기반) "날짜 선택 → 특보 자동 매칭" 리플레이 화면으로 하드코딩 프리셋 대체 — 로그가 어느 정도 쌓인 뒤 착수(지금 시작하면 빈 로그로 시작)
+4. (로드맵) 6개 구 외 지역으로 SHP·포트폴리오 확장 여부는 별도 판단
+
+## 2026-08-18(계속) — 위 1·2번 구현 완료
+
+**1) 라이브 특보 로그 적재**: `advisory/live_log.py` 신규(`append_live_query_log`/`read_live_advisory_log`, append-only JSONL). `agents/advisory_agent.py::run_advisory_agent()`가 `mode="live"`일 때 세 분기(OK·UNKNOWN_REGION·UPSTREAM_ERROR) 전부에서 조회 시각·region_code·원본 이벤트(`AdvisoryEvent` 전체 필드)를 로그에 남기도록 수정 — 실패했다는 사실 자체도 정직하게 기록한다(설계원칙1과 같은 정신). `config.ADVISORY_LIVE_LOG_PATH`(`data/.../audit/advisory_live_log.jsonl`) 신규. `run_advisory_agent(..., live_log_path=...)` 파라미터로 오버라이드 가능(`portfolio_agent.alert_log_path`와 동일 관례) — 기존 `test_advisory_agent.py`의 라이브 모드 테스트 3개는 `tmp_path`로 실제 감사 로그를 오염시키지 않도록 갱신, 로그 적재 자체를 검증하는 신규 테스트 2개 추가.
+
+**2) 주소-프리셋 디커플링 + region 자동감지 + JUSO 자동완성**: 웹 데모에서 "포항 힌남노 프리셋을 선택한 채 대구 주소를 입력하면 담보 평가는 대구 기준, 포트폴리오 알림은 포항 기준으로 나오는" 불일치 버그를 근본 수정.
+- `geocoding/juso.py` 신규 — `scripts/discover_via_juso.py`가 검증해둔 JUSO API(엔드포인트·커버리지 필터)를 라이브 사용자 입력 자동완성에 실제로 연결(그날 오후 DEV_LOG가 "아직 안 한 로드맵"으로 남겨둔 항목).
+- `webapp/app.py`에 `/api/resolve-region`(주소→지오코딩→홍수 에이전트로 region_code·coverage·큐레이션 리플레이 존재 여부 감지) · `/api/address-search`(JUSO 프록시, 실패 시 빈 배열로 조용히 degrade) 신규 엔드포인트 추가. `_CURATED_REPLAY_BY_REGION`은 기존 `_REGION_PRESETS`에서 파생(새 진실의 원천을 만들지 않음).
+- 프론트: `AddressField.tsx` 신규(자동완성 드롭다운 + 디바운스 지역 감지, `value` prop 변화 단일 경로로 트리거 — 직접 타이핑이든 자동완성 선택이든 "예시 주소로 채우기" 드롭다운이든 전부 같은 경로를 타서 감지 누락을 원천 차단). `AssessForm.tsx`에 감지된 지역 뱃지 + (큐레이션 리플레이가 있을 때만) "리플레이로 재생" 체크박스 표시. `App.tsx`는 이제 `region_code`/`mode`/`timeline_path`를 프리셋이 아니라 `detectedRegion`(AddressField가 알려준 감지 결과)에서만 유도한다 — 기존 "지역 프리셋" 드롭다운은 라벨을 "예시 주소로 채우기"로 바꾸고 주소창을 채우는 용도로만 남김.
+- 신규 테스트: `test_geocoding_juso.py`(5개), `test_advisory_live_log.py`(3개), `test_advisory_agent.py` 추가분(2개), `test_webapp_endpoints.py`(8개, FastAPI TestClient로 두 신규 엔드포인트 검증) — `webapp/`이 패키지가 아니라 `sys.path` 삽입으로 임포트해야 해서 그 패턴을 테스트 파일에 그대로 재현.
+
+**검증**: `pytest tests/ -q` 188개 전체 통과(2692초 — 이번 회차는 라이브 JUSO API 실호출 확인(수동 curl)까지 곁들여서 평소보다 오래 걸림, 스위트 자체는 전부 monkeypatch로 격리돼 있어 시간 증가는 스위트 문제가 아님). 프론트 `tsc --noEmit`·`npm run build` 통과, `webapp/static/` 재생성. 로컬 서버로 힌남노(포항 남구, region_code=47111, curated_replay 있음)와 대구 북구(27230, SHP·라이브는 있으나 curated_replay 없음) 두 케이스 다 실제 호출로 동작 확인.
+
+**영향**: `_REGION_PRESETS`의 `daegu-suseong-live` 항목(수성구 라이브 전용 프리셋)은 이제 사실상 중복이다 — 수성구 주소를 입력하면 자동감지로 리플레이/라이브 토글이 뜨므로 별도 프리셋 없이도 라이브를 고를 수 있다. 지우진 않았다(예시 주소 채우기 용도로는 여전히 유효, 정리는 PM 판단). Step 3(날짜 기반 리플레이 UI)은 착수 안 함 — 로그가 실사용으로 쌓인 뒤 진행.

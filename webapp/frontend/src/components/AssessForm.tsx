@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react'
-import type { RegionPreset } from '../types'
+import type { RegionPreset, ResolvedRegion } from '../types'
 import { Card } from './Card'
+import { AddressField } from './AddressField'
 
 interface AssessFormProps {
   presets: RegionPreset[]
@@ -9,18 +10,62 @@ interface AssessFormProps {
   collateralValue: string
   floorType: string
   floorNo: string
+  detectedRegion: ResolvedRegion | null
+  useReplay: boolean
   submitting: boolean
   onPresetChange: (index: number) => void
   onAddressChange: (value: string) => void
+  onRegionResolved: (region: ResolvedRegion | null) => void
   onCollateralValueChange: (value: string) => void
   onFloorTypeChange: (value: string) => void
   onFloorNoChange: (value: string) => void
+  onUseReplayChange: (value: boolean) => void
   onSubmit: () => void
 }
 
 const labelClass = 'block text-xs font-semibold text-muted mt-3.5 mb-1.5 tracking-wide'
 const inputClass =
   'w-full py-2.5 px-3 border border-border rounded-control text-[13px] [font-family:inherit] text-ink bg-surface transition-[border-color,box-shadow] duration-150 ease-out focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(0,168,143,0.16)]'
+
+function RegionStatus({
+  detectedRegion,
+  useReplay,
+  onUseReplayChange,
+}: {
+  detectedRegion: ResolvedRegion | null
+  useReplay: boolean
+  onUseReplayChange: (value: boolean) => void
+}) {
+  if (!detectedRegion) return null
+
+  if (!detectedRegion.resolved) {
+    return <p className="text-[#8a1f12] text-[11px] mt-1.5">{detectedRegion.reason}</p>
+  }
+
+  if (detectedRegion.coverage !== 'IN_SCOPE') {
+    return (
+      <p className="text-warn-ink text-[11px] mt-1.5">
+        커버리지 밖 지역이에요 — 담보 평가는 가능하지만 포트폴리오 재심사 알림·특보 연동 대상은 아니에요.
+      </p>
+    )
+  }
+
+  return (
+    <div className="text-[11px] text-muted mt-1.5">
+      감지된 지역: <span className="font-semibold text-ink">{detectedRegion.region_name}</span>
+      {detectedRegion.curated_replay ? (
+        <label className="ml-2 inline-flex items-center gap-1 cursor-pointer">
+          <input type="checkbox" checked={useReplay} onChange={(e) => onUseReplayChange(e.target.checked)} />
+          {detectedRegion.curated_replay.label}로 재생
+        </label>
+      ) : detectedRegion.live_supported ? (
+        <span className="ml-2">— 과거 재연 데이터가 없어 실시간 특보 조회만 가능해요</span>
+      ) : (
+        <span className="ml-2">— 특보 연동 대상 지역이 아니에요</span>
+      )}
+    </div>
+  )
+}
 
 export function AssessForm({
   presets,
@@ -29,12 +74,16 @@ export function AssessForm({
   collateralValue,
   floorType,
   floorNo,
+  detectedRegion,
+  useReplay,
   submitting,
   onPresetChange,
   onAddressChange,
+  onRegionResolved,
   onCollateralValueChange,
   onFloorTypeChange,
   onFloorNoChange,
+  onUseReplayChange,
   onSubmit,
 }: AssessFormProps) {
   const handleSubmit = (e: FormEvent) => {
@@ -46,7 +95,7 @@ export function AssessForm({
     <Card icon="result" title="담보 평가">
       <form onSubmit={handleSubmit}>
         <label htmlFor="preset" className={labelClass}>
-          지역 프리셋
+          예시 주소로 채우기
         </label>
         <select
           id="preset"
@@ -64,15 +113,13 @@ export function AssessForm({
         <label htmlFor="address" className={labelClass}>
           담보 도로명주소
         </label>
-        <input
-          id="address"
-          type="text"
-          required
-          placeholder="예: 경상북도 포항시 남구 인덕로 27"
-          className={inputClass}
+        <AddressField
           value={address}
-          onChange={(e) => onAddressChange(e.target.value)}
+          inputClassName={inputClass}
+          onChange={onAddressChange}
+          onRegionResolved={onRegionResolved}
         />
+        <RegionStatus detectedRegion={detectedRegion} useReplay={useReplay} onUseReplayChange={onUseReplayChange} />
 
         <label htmlFor="collateral-value" className={labelClass}>
           담보가액(원)
