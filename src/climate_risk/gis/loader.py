@@ -10,6 +10,7 @@ HANDOVER.md §4.3: "로딩 스크립트는 idempotent(기존 테이블 truncate 
 from __future__ import annotations
 
 import hashlib
+import pickle
 from dataclasses import dataclass, field
 
 import shapefile
@@ -17,7 +18,11 @@ import shapely
 import shapely.geometry
 import shapely.ops
 
-from climate_risk.config import FLOOD_SHP_SOURCES, FloodShpSource, LICENSE_LABEL
+from climate_risk.config import FLOOD_SHP_SOURCES, GIS_LOAD_CACHE_PATH, FloodShpSource, LICENSE_LABEL
+
+# 캐시 파일 포맷이 바뀌면(예: LoadedFloodRegion 필드 추가) 올려서 옛 피클을 자동
+# 무효화한다 — 잘못된 스키마의 캐시를 그대로 읽어 조용히 틀린 값을 쓰는 걸 방지.
+_CACHE_FORMAT_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -144,6 +149,68 @@ def load_all_regions(
     """
     sources = sources if sources is not None else FLOOD_SHP_SOURCES
     return [_load_one(source) for source in sources]
+
+
+def _source_manifest_entry(source: FloodShpSource) -> tuple[str, int, int]:
+    """SHP + 동반 dbf 파일의 (경로, mtime_ns, size) — 캐시 무효화 판단용.
+
+    geometry는 .shp, 속성(SGG_CD 등)은 .dbf에 있어 둘 다 봐야 내용 변경을
+    놓치지 않는다. .shx는 인덱스일 뿐이라 제외.
+    """
+    shp_path = source.path
+    dbf_path = shp_path.with_suffix(".dbf")
+    entries = []
+    for p in (shp_path, dbf_path):
+        stat = p.stat()
+        entries.append((str(p), stat.st_mtime_ns, stat.st_size))
+    return entries
+
+
+def load_all_regions_cached(
+    sources: list[FloodShpSource] | None = None,
+    cache_path=GIS_LOAD_CACHE_PATH,
+) -> list[LoadedFloodRegion]:
+    """`load_all_regions()`과 동일한 결과를 반환하되, 디스크 피클 캐시를 우선 쓴다.
+
+    SHP 콜드 로딩(polygonize+make_valid, 냉천/신천/거제 7개 합쳐 수 분)이 프로세스가
+    새로 뜰 때마다(pytest 재실행, 서버 재시작) 반복되던 걸 없애기 위함
+    (2026-08-19, DEV_LOG.md 참조). SHP/dbf 파일의 mtime+size로 원본 데이터 변경을
+    감지해 자동 무효화한다 — 원본이 안 바뀌었으면 캐시를 신뢰하고, 바뀌었으면(또는
+    캐시 포맷 버전이 바뀌었으면) 조용히 다시 콜드 로딩해 캐시를 갱신한다.
+
+    `tests/test_loader_idempotent.py`는 "진짜 재파싱이 매번 동일 결과를 내는지"를
+    검증하는 테스트라 이 캐시를 쓰지 않고 `load_all_regions()`를 직접 호출한다 —
+    캐시를 쓰면 그 테스트의 검증 의미가 없어짐.
+    """
+    sources = sources if sources is not None else FLOOD_SHP_SOURCES
+    manifest = [entry for source in sources for entry in _source_manifest_entry(source)]
+
+    if cache_path.exists():
+        try:
+            with cache_path.open("rb") as f:
+                cached = pickle.load(f)
+        except (pickle.UnpicklingError, EOFError, AttributeError, ImportError):
+            cached = None
+        if (
+            cached is not None
+            and cached.get("version") == _CACHE_FORMAT_VERSION
+            and cached.get("manifest") == manifest
+        ):
+            return cached["regions"]
+
+    regions = load_all_regions(sources)
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = cache_path.with_suffix(cache_path.suffix + ".tmp")
+    with tmp_path.open("wb") as f:
+        pickle.dump(
+            {"version": _CACHE_FORMAT_VERSION, "manifest": manifest, "regions": regions},
+            f,
+            protocol=pickle.HIGHEST_PROTOCOL,
+        )
+    tmp_path.replace(cache_path)  # 원자적 교체 — 쓰다 만 캐시 파일이 안 남게
+
+    return regions
 
 
 def region_geometry_hash(region: LoadedFloodRegion) -> str:

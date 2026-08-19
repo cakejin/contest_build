@@ -19,7 +19,7 @@ from climate_risk.gis.coverage import (
     match_known_uncertain_point,
     to_flood_map_crs,
 )
-from climate_risk.gis.loader import FloodRiskZone, LoadedFloodRegion, load_all_regions
+from climate_risk.gis.loader import FloodRiskZone, LoadedFloodRegion, load_all_regions_cached
 
 TIER_INNER = "내부"
 TIER_NEAR = "근접"
@@ -92,8 +92,14 @@ def _cached_default_regions() -> tuple[LoadedFloodRegion, ...]:
     Week3(포트폴리오 300~500건 배치)에서 감당 불가능하다(배치 1건당 95초 이상).
     이 함수는 그 경로에서만 쓰인다 — 명시적으로 regions를 넘기는 호출(테스트 등)은
     이 캐시를 우회하며 매번 새로 로딩된다(재현성 검증 목적이라 의도적).
+
+    2026-08-19: 이 lru_cache는 프로세스 수명 동안만 유효해 서버 재시작·pytest
+    재실행마다 여전히 콜드 로딩이 반복됐다. `load_all_regions_cached()`(디스크
+    피클 캐시, gis/loader.py)로 바꿔 프로세스가 새로 떠도 원본 SHP/dbf가 안
+    바뀌었으면 캐시 히트로 즉시 반환하게 한다 — 이 lru_cache는 그 위에서 같은
+    프로세스 내 반복 호출 시 디스크 I/O조차 생략하는 얇은 추가 레이어로 남는다.
     """
-    return tuple(load_all_regions())
+    return tuple(load_all_regions_cached())
 
 
 @functools.lru_cache(maxsize=1)

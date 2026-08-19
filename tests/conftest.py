@@ -1,13 +1,18 @@
 import pytest
 
-from climate_risk.gis.loader import load_all_regions
+from climate_risk.gis.loader import load_all_regions_cached
 from climate_risk.gis.query import FloodRiskResult
 
 
 @pytest.fixture(scope="session")
 def regions():
-    """SHP 7개 전량 로딩 — 정점 수가 커서(냉천 SGG N330=68,971점) 세션당 1회만 로딩."""
-    return load_all_regions()
+    """SHP 7개 전량 로딩 — 정점 수가 커서(냉천 SGG N330=68,971점) 세션당 1회만 로딩.
+
+    2026-08-19: 디스크 캐시(gis/loader.py::load_all_regions_cached) 경유로 바꿔
+    pytest 재실행 사이에도 콜드 로딩이 반복되지 않게 한다. `test_loader_idempotent.py`의
+    `reloaded_regions`는 이 캐시를 의도적으로 우회하고 `load_all_regions()`를 직접
+    불러 "진짜 재파싱" 검증을 유지한다."""
+    return load_all_regions_cached()
 
 
 @pytest.fixture

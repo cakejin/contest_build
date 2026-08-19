@@ -31,6 +31,12 @@ JUSO_API_KEY = os.environ.get("JUSO_API_KEY", "")
 
 RAW_DATA_DIR = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "raw"
 
+# 2026-08-19 추가(DEV_LOG.md 참조) — SHP 콜드 로딩(gis/loader.py, 파일 수·복잡도에
+# 따라 수 분) 결과를 디스크에 캐시해 프로세스가 새로 시작될 때마다(pytest 재실행,
+# 서버 재시작 등) 매번 콜드 로딩하던 것을 없앤다. data/ 자체가 .gitignore 대상이라
+# 이 캐시 파일도 git 이력에 안 남는다.
+GIS_LOAD_CACHE_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / ".cache" / "gis_load_cache.pkl"
+
 FLOOD_MAP_SOURCE_CRS = "EPSG:5186"  # KGD2002 중부원점 2010 — 원본 SHP 좌표계 그대로 보관
 LICENSE_LABEL = "환경부 홍수위험지도, 공공누리 4유형(출처표시·상업이용 금지·변경금지)"
 
