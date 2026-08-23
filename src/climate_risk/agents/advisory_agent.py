@@ -14,6 +14,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from climate_risk.advisory.curated_loader import load_curated_timeline
+from climate_risk.advisory.disaster_msg import (
+    STATUS_OK as _DM_STATUS_OK,
+    STATUS_PAGE_LIMIT_REACHED as _DM_STATUS_PAGE_LIMIT_REACHED,
+    STATUS_UNMAPPED_REGION as _DM_STATUS_UNMAPPED_REGION,
+    STATUS_UNREGISTERED_IP as _DM_STATUS_UNREGISTERED_IP,
+    STATUS_UPSTREAM_ERROR as _DM_STATUS_UPSTREAM_ERROR,
+    DisasterMessage,
+    query_disaster_messages_for_region,
+)
 from climate_risk.advisory.kma_historical import (
     STATUS_ACTIVATION_REQUIRED as _HIST_STATUS_ACTIVATION_REQUIRED,
     STATUS_NO_ZONE_MATCH as _HIST_STATUS_NO_ZONE_MATCH,
@@ -60,6 +69,13 @@ STATUS_LIVE_UPSTREAM_ERROR = "LIVE_UPSTREAM_ERROR"
 STATUS_HISTORICAL_ACTIVATION_REQUIRED = "HISTORICAL_ACTIVATION_REQUIRED"
 STATUS_HISTORICAL_NO_ZONE_MATCH = "HISTORICAL_NO_ZONE_MATCH"
 STATUS_HISTORICAL_UPSTREAM_ERROR = "HISTORICAL_UPSTREAM_ERROR"
+# 2026-08-20 추가(DEV_LOG.md 참조) — mode="disaster_msg"(safetydata.go.kr 재난문자,
+# 산불·화재 포함) 4종 실패 상태. disaster_msg.py의 원시 상태를 그대로 번역만 한다
+# (다른 mode 분기와 같은 관례) — 조용히 빈 값으로 뭉개지 않는다(설계원칙1).
+STATUS_DISASTER_MSG_UNREGISTERED_IP = "DISASTER_MSG_UNREGISTERED_IP"
+STATUS_DISASTER_MSG_UNMAPPED_REGION = "DISASTER_MSG_UNMAPPED_REGION"
+STATUS_DISASTER_MSG_UPSTREAM_ERROR = "DISASTER_MSG_UPSTREAM_ERROR"
+STATUS_DISASTER_MSG_PAGE_LIMIT_REACHED = "DISASTER_MSG_PAGE_LIMIT_REACHED"
 
 
 @dataclass(frozen=True)
@@ -102,6 +118,44 @@ def _historical_event_to_advisory_event(event: HistoricalWarningEvent) -> Adviso
         source_url=_HISTORICAL_SOURCE_URL,
         target_region_text=f"기상청 특보구역 reg_id={event.reg_id}",
     )
+
+
+# safetydata.go.kr 공식 API 상세 페이지 — 개별 재난문자 레코드에 딸린 기사 URL이 없으므로
+# (정형 API 응답 자체가 출처) live.py·kma_historical.py와 같은 관례로 실존·상시 접근
+# 가능한 공식 페이지를 쓴다. 사용자가 직접 확인해 알려준 URL(2026-08-20).
+_DISASTER_MSG_SOURCE_URL = "https://www.safetydata.go.kr/disaster-data/view?dataSn=228"
+_DISASTER_MSG_CONTENT_PREVIEW_LEN = 200  # MSG_CN이 최대 4000자라 인용 문장이 과도하게 길어지지 않게 자름
+
+
+def _disaster_message_to_advisory_event(msg: DisasterMessage) -> AdvisoryEvent:
+    msg_preview = msg.msg_cn[:_DISASTER_MSG_CONTENT_PREVIEW_LEN]
+    if len(msg.msg_cn) > _DISASTER_MSG_CONTENT_PREVIEW_LEN:
+        msg_preview += "…"
+    return AdvisoryEvent(
+        event_id=f"disaster-msg-{msg.sn}",
+        issued_at=msg.crt_dt.isoformat(),
+        time_precision="exact",
+        event_type="재난문자",
+        warning_type=msg.dst_se_nm,
+        description=f"[{msg.dst_se_nm}/{msg.emrg_step_nm}] {msg_preview}",
+        source_url=_DISASTER_MSG_SOURCE_URL,
+        target_region_text=msg.rcptn_rgn_nm.strip(),
+    )
+
+
+def _disaster_msg_supplemental_events(region_code: str, start: datetime, end: datetime) -> list[AdvisoryEvent]:
+    """historical 모드에 재난문자(산불·화재 포함)를 자동으로 병합하는 보강 조회
+    (2026-08-20 사용자 결정 — 별도 모드/UI 토글 대신 큐레이션 병합과 같은 방식으로
+    자동 병합). 실패해도 historical 모드 자체를 깨뜨리지 않는다 — KMA가 이미 1차
+    데이터소스로 성공했으므로, 이 보강 조회의 실패(IP 화이트리스트·업스트림 오류·
+    페이지 상한 등)는 "판정 불가"가 아니라 "보강 정보 없음"에 해당한다(설계원칙1이
+    보호하는 건 홍수 커버리지 게이트 같은 1차 데이터이지, 여러 소스 중 하나인 보강
+    신호가 아니다). region_code가 재난문자 매핑에 없어도(STATUS_UNMAPPED_REGION)
+    마찬가지로 조용히 빈 목록만 반환한다."""
+    result = query_disaster_messages_for_region(region_code, start, end)
+    if result.status != _DM_STATUS_OK:
+        return []
+    return [_disaster_message_to_advisory_event(m) for m in result.messages]
 
 
 def _overlapping_curated_events(region_code: str, start: datetime, end: datetime) -> list[AdvisoryEvent]:
@@ -160,9 +214,12 @@ def run_advisory_agent(
 
         assert hist_result.status == _HIST_STATUS_OK
         events = [_historical_event_to_advisory_event(e) for e in hist_result.events]
-        # 공식 특보 이력 + (겹치면) 뉴스 기반 큐레이션 서술을 함께 보여준다 — 서로 다른
-        # 종류의 사실이라 하나가 다른 하나를 대체하지 않는다(위 docstring 참조).
+        # 공식 특보 이력 + (겹치면) 뉴스 기반 큐레이션 서술 + 재난문자(산불·화재 포함)를
+        # 함께 보여준다 — 서로 다른 종류의 사실이라 하나가 다른 하나를 대체하지 않는다
+        # (위 docstring 참조). 재난문자 보강은 실패해도 이 결과 자체를 깨뜨리지 않는다
+        # (_disaster_msg_supplemental_events 참조).
         events += _overlapping_curated_events(region_code, historical_start, historical_end)
+        events += _disaster_msg_supplemental_events(region_code, historical_start, historical_end)
         events.sort(key=lambda e: e.issued_at)
         trigger_event = any(event.event_type in _TRIGGER_EVENT_TYPES for event in events)
         return AdvisoryAgentOutput(
@@ -173,6 +230,51 @@ def run_advisory_agent(
             region_code=region_code,
             status=STATUS_OK,
             source_id=f"advisory:historical:kma:reg_id={hist_result.reg_id}",
+        )
+
+    if mode == "disaster_msg":
+        if historical_start is None or historical_end is None:
+            raise ValueError("mode='disaster_msg'에는 historical_start/historical_end가 모두 필요합니다")
+
+        dm_result = query_disaster_messages_for_region(region_code, historical_start, historical_end)
+
+        if dm_result.status == _DM_STATUS_UNREGISTERED_IP:
+            return AdvisoryAgentOutput(
+                active_warnings=[], trigger_event=False, mode=mode, timeline=[],
+                region_code=region_code, status=STATUS_DISASTER_MSG_UNREGISTERED_IP,
+                source_id="advisory:disaster_msg:unregistered_ip",
+            )
+        if dm_result.status == _DM_STATUS_UNMAPPED_REGION:
+            return AdvisoryAgentOutput(
+                active_warnings=[], trigger_event=False, mode=mode, timeline=[],
+                region_code=region_code, status=STATUS_DISASTER_MSG_UNMAPPED_REGION,
+                source_id="advisory:disaster_msg:unmapped_region",
+            )
+        if dm_result.status == _DM_STATUS_PAGE_LIMIT_REACHED:
+            return AdvisoryAgentOutput(
+                active_warnings=[], trigger_event=False, mode=mode, timeline=[],
+                region_code=region_code, status=STATUS_DISASTER_MSG_PAGE_LIMIT_REACHED,
+                source_id="advisory:disaster_msg:page_limit_reached",
+            )
+        if dm_result.status == _DM_STATUS_UPSTREAM_ERROR:
+            return AdvisoryAgentOutput(
+                active_warnings=[], trigger_event=False, mode=mode, timeline=[],
+                region_code=region_code, status=STATUS_DISASTER_MSG_UPSTREAM_ERROR,
+                source_id="advisory:disaster_msg:upstream_error",
+            )
+
+        assert dm_result.status == _DM_STATUS_OK
+        events = [_disaster_message_to_advisory_event(m) for m in dm_result.messages]
+        events.sort(key=lambda e: e.issued_at)
+        trigger_event = any(event.event_type in _TRIGGER_EVENT_TYPES for event in events)
+        return AdvisoryAgentOutput(
+            active_warnings=[_to_active_warning(e) for e in events],
+            trigger_event=trigger_event,
+            mode=mode,
+            timeline=events,
+            region_code=region_code,
+            status=STATUS_OK,
+            source_id="advisory:disaster_msg:safetydata",
         )
 
     if mode == "live":
@@ -215,7 +317,7 @@ def run_advisory_agent(
         )
 
     if mode != "replay":
-        raise ValueError(f"알 수 없는 mode={mode!r} — 'replay'·'live'·'historical'만 지원합니다")
+        raise ValueError(f"알 수 없는 mode={mode!r} — 'replay'·'live'·'historical'·'disaster_msg'만 지원합니다")
 
     curated = load_curated_timeline(timeline_path)
 

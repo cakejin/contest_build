@@ -37,10 +37,12 @@ def run_demo_cli(run_fn: Callable[..., dict[str, Any]], description: str) -> Non
     parser.add_argument("--collateral-value", required=True, type=float, help="담보가액(원)")
     parser.add_argument("--region-code", default="47111", help="특보 대상 지역코드(기본: 포항시 남구)")
     parser.add_argument(
-        "--mode", choices=["replay", "live", "historical"], default="replay",
+        "--mode", choices=["replay", "live", "historical", "disaster_msg"], default="replay",
         help=(
             "특보 조회 방식 — replay(큐레이션 JSON 재생, 기본)·live(기상청 실시간 API)·"
-            "historical(기상청 API허브 과거 특보 이력, --historical-start/--historical-end 필요)"
+            "historical(기상청 API허브 과거 특보 이력, 재난문자 자동 병합 포함 —"
+            " --historical-start/--historical-end 필요)·disaster_msg(재난문자 단독 조회,"
+            " 산불·화재 포함 — --historical-start/--historical-end 필요)"
         ),
     )
     parser.add_argument(
@@ -49,11 +51,11 @@ def run_demo_cli(run_fn: Callable[..., dict[str, Any]], description: str) -> Non
     )
     parser.add_argument(
         "--historical-start", default=None,
-        help="mode=historical일 때 조회 시작일(YYYY-MM-DD, KST 00:00 기준)",
+        help="mode=historical/disaster_msg일 때 조회 시작일(YYYY-MM-DD, KST 00:00 기준)",
     )
     parser.add_argument(
         "--historical-end", default=None,
-        help="mode=historical일 때 조회 종료일(YYYY-MM-DD, KST 23:59:59 기준)",
+        help="mode=historical/disaster_msg일 때 조회 종료일(YYYY-MM-DD, KST 23:59:59 기준)",
     )
     parser.add_argument("--seed", type=int, default=DEFAULT_EAL_SEED, help="몬테카를로 EAL 시드")
     parser.add_argument(
@@ -69,8 +71,8 @@ def run_demo_cli(run_fn: Callable[..., dict[str, Any]], description: str) -> Non
     )
     args = parser.parse_args()
 
-    if args.mode == "historical" and (not args.historical_start or not args.historical_end):
-        parser.error("--mode historical에는 --historical-start와 --historical-end가 모두 필요합니다")
+    if args.mode in ("historical", "disaster_msg") and (not args.historical_start or not args.historical_end):
+        parser.error(f"--mode {args.mode}에는 --historical-start와 --historical-end가 모두 필요합니다")
 
     print(_LOADING_BANNER, file=sys.stderr)
 

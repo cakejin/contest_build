@@ -29,6 +29,14 @@ SAFEMAP_API_KEY_A = os.environ.get("SAFEMAP_API_KEY_A", "")
 # 주소 입력은 이 키와 무관하게 geocoding/vworld.py로 처리된다 — 혼동 시 DEV_LOG.md 2026-08-18 참조.
 JUSO_API_KEY = os.environ.get("JUSO_API_KEY", "")
 
+# safetydata.go.kr 행정안전부 재난문자 발송내역 조회(DSSP-IF-00247), 2026-08-20 승인.
+# IP 화이트리스트 1개만 등록 가능(등록 IP 아니면 거부) — DEV_LOG.md 2026-08-19 IP 화이트리스트
+# 이슈 참조. 구 단위 세분화 가능성 보완 소스로 도입(대구 5개구가 기상청 특보 API로는 개별
+# 구분이 안 되는 한계, advisory/kma_historical.py·advisory/live.py 참조) — 실제로 그런지는
+# 미검증, 실호출로 응답 스키마부터 확인 필요.
+SAFETYDATA_DISASTER_MSG_API_KEY = os.environ.get("SAFETYDATA_DISASTER_MSG_API_KEY", "")
+SAFETYDATA_DISASTER_MSG_URL = "https://www.safetydata.go.kr/V2/api/DSSP-IF-00247"
+
 RAW_DATA_DIR = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "raw"
 
 # 2026-08-19 추가(DEV_LOG.md 참조) — SHP 콜드 로딩(gis/loader.py, 파일 수·복잡도에
