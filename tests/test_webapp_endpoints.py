@@ -242,3 +242,100 @@ def test_assess_with_query_date_uses_historical_mode_and_24h_window(monkeypatch)
     assert captured["mode"] == "historical"
     assert captured["historical_start"].isoformat() == "2022-09-06T00:00:00+09:00"
     assert captured["historical_end"].isoformat() == "2022-09-07T00:00:00+09:00"
+
+
+def test_portfolio_map_exposes_ltv_insurance_eal_and_derives_city_from_address(monkeypatch):
+    """2026-08-25 — /api/portfolio-list와 대구를 이루는 테스트. 이 엔드포인트는 내부
+    리스크 개관용 포트폴리오 지도 화면 전용이라 ltv·eal_before·insurance_covered를
+    일부러 노출한다(위 test_portfolio_list_...와 정반대). 'c'(지역 라벨)는 region_code가
+    아니라 주소 문자열로 판정해야 한다 — region_code=None(SHP 커버리지 밖)이어도 주소가
+    대구/포항/거제면 '기타'가 아니라 그 도시로 분류돼야 한다(DEV_LOG.md 2026-08-18 참조)."""
+    from climate_risk.portfolio.schema import PortfolioRecord
+
+    fake_records = [
+        PortfolioRecord(
+            collateral_id="COL-001",
+            address="경상북도 포항시 남구 인덕로 27",
+            collateral_type="아파트",
+            balance=300000000.0,
+            collateral_value=500000000.0,
+            ltv=0.6,
+            score_before=55.0,
+            eal_before=1000.0,
+            lat=35.98768,
+            lon=129.39979,
+            region_code="47111",
+            insurance_covered=True,
+        ),
+        PortfolioRecord(
+            collateral_id="COL-500",
+            address="대구광역시 달서구 성서공단로 1",  # 커버리지 밖 공단지역 예시
+            collateral_type="공장",
+            balance=100000000.0,
+            collateral_value=200000000.0,
+            ltv=0.5,
+            score_before=None,
+            eal_before=None,
+            lat=35.85,
+            lon=128.45,
+            region_code=None,  # SHP 커버리지 밖 — 그래도 주소는 명백히 대구
+            insurance_covered=None,
+        ),
+    ]
+    monkeypatch.setattr(webapp_app, "load_portfolio", lambda path: fake_records)
+
+    res = client.get("/api/portfolio-map")
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body[0] == {
+        "id": "COL-001",
+        "a": "경상북도 포항시 남구 인덕로 27",
+        "t": "아파트",
+        "c": "포항",
+        "lat": 35.98768,
+        "lon": 129.39979,
+        "ltv": 0.6,
+        "sc": 55.0,
+        "eal": 1000.0,
+        "ins": True,
+        "bal": 300000000.0,
+        "val": 500000000.0,
+    }
+    assert body[1]["c"] == "대구"  # region_code=None이어도 주소 기반으로 정확히 분류됨
+    assert body[1]["sc"] is None
+    assert body[1]["eal"] is None
+
+
+def test_portfolio_map_skips_records_without_lat_lon(monkeypatch):
+    from climate_risk.portfolio.schema import PortfolioRecord
+
+    fake_records = [
+        PortfolioRecord(
+            collateral_id="COL-999",
+            address="대구광역시 남구 대봉로 1",
+            collateral_type="아파트",
+            balance=100000000.0,
+            collateral_value=200000000.0,
+            ltv=0.5,
+            score_before=None,
+            eal_before=None,
+            lat=None,
+            lon=None,
+        )
+    ]
+    monkeypatch.setattr(webapp_app, "load_portfolio", lambda path: fake_records)
+
+    res = client.get("/api/portfolio-map")
+
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_portfolio_map_page_serves_html():
+    res = client.get("/portfolio-map")
+
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/html")
+    assert "담보 포트폴리오 지도" in res.text
+    assert "/api/portfolio-map" in res.text  # 라이브 데이터를 fetch하는지 확인

@@ -20,7 +20,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fastapi import FastAPI, Query  # noqa: E402
-from fastapi.responses import StreamingResponse  # noqa: E402
+from fastapi.responses import HTMLResponse, StreamingResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from climate_risk.agents.flood_agent import run_flood_agent  # noqa: E402
@@ -109,6 +109,57 @@ def get_portfolio_list() -> list[dict[str, Any]]:
         }
         for r in records
     ]
+
+
+# 2026-08-25 — 사용자가 별도로 만든 "담보 포트폴리오 지도" Claude Artifact를 로컬 데모에도
+# 띄워달라고 요청해 추가. /api/portfolio-list와 달리 ltv·insurance_covered·eal_before를
+# 그대로 노출한다 — 저건 "주소 하나 고르는" 화면이라 블루라이닝 방지 설계상 굳이 필요 없는
+# 값이었지만(위 주석 참조), 이건 그 반대로 포트폴리오 전체를 조망하는 내부 리스크 개관용
+# 화면이라 LTV·EAL 자체가 화면의 존재 이유다 — 원칙 위반이 아니라 용도가 다른 별도 화면.
+#
+# 필드명은 포트폴리오 지도 아티팩트의 프론트 JS가 이미 그대로 기대하는 짧은 키를 그대로
+# 맞췄다(이식한 JS 코드를 고치지 않기 위함, webapp/portfolio_map.html 참조):
+#   id=collateral_id, a=address, t=collateral_type, c=지역(아래 _city_label 참조),
+#   lat/lon 그대로, ltv 그대로, sc=score_before, eal=eal_before, ins=insurance_covered,
+#   bal=balance, val=collateral_value.
+def _city_label(address: str) -> str:
+    """"대구"/"포항"/"거제"/"기타" — region_code가 아니라 주소 문자열로 판정한다.
+
+    region_code=None은 "홍수위험지도 SHP 폴리곤 밖"이라는 뜻이지 "대구/포항/거제 시
+    경계 밖"이라는 뜻이 아니다(공장·창고 등이 SHP 커버리지보다 넓게 퍼져 있다는
+    DEV_LOG.md 2026-08-18 기록과 일치). region_code로 지역을 나누면 실제로는 대구·
+    포항·거제 안에 있는 담보 상당수가 "기타"로 잘못 분류된다 — 포트폴리오 지도
+    아티팩트가 원래 이렇게(주소 문자열 매칭) 계산했던 것을 그대로 재현한다."""
+    for city in ("대구", "포항", "거제"):
+        if city in address:
+            return city
+    return "기타"
+
+
+@app.get("/api/portfolio-map")
+def get_portfolio_map() -> list[dict[str, Any]]:
+    records = load_portfolio(PORTFOLIO_DATA_PATH)
+    out: list[dict[str, Any]] = []
+    for r in records:
+        if r.lat is None or r.lon is None:
+            continue  # 지오코딩 미완료 레코드 — 있어서는 안 되지만 방어적으로 스킵
+        out.append(
+            {
+                "id": r.collateral_id,
+                "a": r.address,
+                "t": r.collateral_type,
+                "c": _city_label(r.address),
+                "lat": r.lat,
+                "lon": r.lon,
+                "ltv": r.ltv,
+                "sc": r.score_before,
+                "eal": r.eal_before,
+                "ins": r.insurance_covered,
+                "bal": r.balance,
+                "val": r.collateral_value,
+            }
+        )
+    return out
 
 
 # region_code -> 큐레이션된 리플레이 프리셋(있으면). "지역 프리셋" 드롭다운이 미리 정해준
@@ -260,6 +311,17 @@ def assess(
             yield chunk
 
     return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+_PORTFOLIO_MAP_HTML_PATH = Path(__file__).resolve().parent / "portfolio_map.html"
+
+
+# webapp/static/(Vite 빌드 산출물, vite.config.ts의 emptyOutDir:true로 매 빌드마다
+# 통째로 지워짐) 밖에 이 파일을 둔 이유가 이 라우트다 — 프론트 재빌드해도 안 사라진다.
+# React SPA가 아니라 순수 HTML/JS라 별도 catch-all 규칙 없이 라우트 하나로 충분하다.
+@app.get("/portfolio-map", response_class=HTMLResponse)
+def portfolio_map_page() -> str:
+    return _PORTFOLIO_MAP_HTML_PATH.read_text(encoding="utf-8")
 
 
 # API 라우트를 전부 등록한 뒤 마지막에 정적 파일을 "/"에 마운트한다 — 등록 순서상

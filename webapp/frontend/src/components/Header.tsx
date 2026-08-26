@@ -1,8 +1,11 @@
 export function Header() {
   return (
     <>
-      <div className="bg-surface border-b border-border py-1.5 px-8 text-[11.5px] text-muted flex justify-end gap-4">
+      <div className="bg-surface border-b border-border py-1.5 px-8 text-[11.5px] text-muted flex justify-end items-center gap-4">
         <span>데이터 출처: 기상청 특보 API · V-World · 건축HUB · 국토부 홍수위험지도</span>
+        <a href="/portfolio-map" className="text-accent font-semibold no-underline hover:underline">
+          포트폴리오 지도 →
+        </a>
       </div>
       <header className="relative text-white py-[26px] px-8 flex items-center gap-3.5 shadow-[0_4px_18px_-8px_rgba(0,40,34,0.45)] bg-[linear-gradient(120deg,#00c9a0_0%,var(--color-title)_55%,#005e50_100%)] after:content-[''] after:absolute after:left-0 after:right-0 after:-bottom-[3px] after:h-[3px] after:bg-[linear-gradient(90deg,var(--color-accent)_0%,var(--color-accent-soft)_100%)]">
         <div className="flex-none w-11 h-11 rounded-xl bg-white/14 border border-white/28 flex items-center justify-center">
