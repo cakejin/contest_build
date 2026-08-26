@@ -14,9 +14,10 @@ from climate_risk.agents.building_agent import BuildingAgentOutput
 from climate_risk.agents.flood_agent import FloodAgentOutput
 from climate_risk.agents.scenario_agent import run_scenario_agent
 from climate_risk.config import DEFAULT_EAL_ITERATIONS, DEFAULT_EAL_SEED
+from climate_risk.evaluation.flood_marks import FloodMarksValidationSet, load_flood_marks_validation_set
 from climate_risk.gis.coverage import match_known_uncertain_point
 from climate_risk.gis.golden_points import GEOJE_POINTS, NAECHEON_POINTS, SINCHEON_POINTS
-from climate_risk.gis.query import query_flood_risk
+from climate_risk.gis.query import TIER_INNER, TIER_NEAR, query_flood_risk
 from climate_risk.memo.schema import MemoAgentOutput
 from climate_risk.policy.forbidden_phrases import scan_forbidden_phrases
 
@@ -91,6 +92,59 @@ def forbidden_phrase_absence_metric(memo: MemoAgentOutput) -> dict:
         for m in scan_forbidden_phrases(section.text):
             matches.append({"text": section.text, "phrase": m.phrase})
     return {"clean": len(matches) == 0, "matches": matches}
+
+
+def flood_marks_recall_metric(
+    validation_set: FloodMarksValidationSet | None = None,
+) -> dict:
+    """실측 침수흔적(safemap A2SM_FLUDMARKS_WI, DEV_LOG.md 2026-08-26) 대비 우리
+    SHP tier 판정의 recall — coverage_gate_metric()의 골든셋(12개, 사람이 정답을 직접
+    확인)과 달리 여기엔 우리가 통제하는 '정답'이 없다. 실제로 침수됐던 지점을 우리
+    화이트박스 판정이 위험(내부/근접)으로 잡아내는 비율을 있는 그대로 보고할 뿐,
+    특정 수치를 목표로 만들지 않는다(설계 원칙 4 "정직성"과 같은 정신) — 그래서 이
+    함수를 호출하는 회귀 테스트도 recall 값 자체를 assert하지 않는다."""
+    if validation_set is None:
+        validation_set = load_flood_marks_validation_set()
+
+    evaluated = [
+        {"record": rec, "result": query_flood_risk(rec.lat, rec.lon)}
+        for rec in validation_set.records
+    ]
+
+    def _recall(subset: list[dict]) -> dict:
+        in_scope = [x for x in subset if x["result"].coverage == "IN_SCOPE"]
+        hit = [x for x in in_scope if x["result"].tier in (TIER_INNER, TIER_NEAR)]
+        return {
+            "total": len(subset),
+            "in_scope": len(in_scope),
+            "out_of_scope": len(subset) - len(in_scope),
+            "hit": len(hit),
+            "recall": (len(hit) / len(in_scope)) if in_scope else None,
+        }
+
+    by_region = {
+        region: _recall([x for x in evaluated if x["record"].region_name == region])
+        for region in sorted({x["record"].region_name for x in evaluated})
+    }
+    by_cause = {
+        cause: _recall([x for x in evaluated if x["record"].cause_category == cause])
+        for cause in sorted({x["record"].cause_category for x in evaluated})
+    }
+
+    return {
+        "overall": _recall(evaluated),
+        "by_region": by_region,
+        "by_cause_category": by_cause,
+        "out_of_scope_records": [
+            {
+                "region": x["record"].region_name,
+                "lat": x["record"].lat,
+                "lon": x["record"].lon,
+            }
+            for x in evaluated
+            if x["result"].coverage != "IN_SCOPE"
+        ],
+    }
 
 
 def coverage_uncertain_point_metric() -> dict:
