@@ -742,7 +742,7 @@ AWS 양지암(313) 단일 시각: 카눈 08-10 12:00 RN_DAY 111.5·60분최대 2
 | 콩레이·차바 포항, 힌남노·미탁 거제 | 미확인 | 58·154 | 58·58·104·115 | 0 |
 | 하이선·2023-07 포항, 2023·2025-07 대구 | 미확인 | 23~58 | 0 | 0 |
 
-**검증**: 신규·수정 테스트 — `test_severity_alerts.py`(종류 조건·임계값·담보별 등급·강수미확인 유지·요약), `test_advisory_live.py`(등급 파싱), `test_portfolio_agent_smoke.py`(주입 fetcher로 등급·요약, 창 없으면 호출 없음), `test_webapp_endpoints.py`(창 확장), `test_week3_demo_smoke.py`(모의 함수 시그니처), `test_alert_validation.py`(C1 고정·프로덕션=C2 동일성). 전체 스위트 결과는 아래 추기.
+**검증**: 신규·수정 테스트 — `test_severity_alerts.py`(종류 조건·임계값·담보별 등급·강수미확인 유지·요약), `test_advisory_live.py`(등급 파싱), `test_portfolio_agent_smoke.py`(주입 fetcher로 등급·요약, 창 없으면 호출 없음), `test_webapp_endpoints.py`(창 확장), `test_week3_demo_smoke.py`(모의 함수 시그니처), `test_alert_validation.py`(C1 고정·프로덕션=C2 동일성). `pytest tests/ -q` 전체 **295개 통과**(프로덕션 변경 후, 커밋 8753c05 시점).
 
 **영향**: PM은 (1) HANDOVER §4.1 "임계치 초과분만 알림"의 임계치 정의를 "EAL 변화율"에서 "특보 종류 + 담보별 강수 110/180mm"로 갱신할지, (2) PPT·proposal의 재심사 알림 설명·캡처를 새 화면으로 교체할지 판단. 실사용 확인(로컬 서버에서 힌남노·수성구·거제 3건 조회)은 다음 단계.
 
