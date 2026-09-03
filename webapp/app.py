@@ -278,8 +278,11 @@ def assess(
 
     if query_date:
         mode = "historical"
-        historical_start = _parse_kst_date(query_date)
-        historical_end = historical_start + timedelta(days=1)
+        # 2026-09-03(계속10, DEV_LOG.md) — 기상청 특보 이력 API는 발표시각(TM_FC) 기준으로 거르므로
+        # 전날 밤 발표된 경보(힌남노: 09-05 22:00 발표, 09-06 00:00 발효)가 하루 창에서 빠졌다.
+        # 조회일 하루 전 00:00부터 조회일 다음날 00:00까지로 넓힌다.
+        historical_start = _parse_kst_date(query_date) - timedelta(days=1)
+        historical_end = _parse_kst_date(query_date) + timedelta(days=1)
     else:
         mode = "live"
         historical_start = None

@@ -149,3 +149,67 @@ def test_portfolio_agent_end_to_end_with_mocked_agents(monkeypatch, in_scope_flo
     # EAL 채널(위 alerts)과 별개로 비어 있어야 한다 — 두 채널이 서로 다른 신호에서
     # 나온다는 걸 여기서도 확인.
     assert result.severity_alerts == []
+
+
+
+def test_portfolio_agent_uses_injected_station_rainfall_for_tiers(monkeypatch, in_scope_flood, tmp_path):
+    """2026-09-03(계속10): 관측 창이 주어지면 주입된 fetcher로 담보별 강수 등급을 매기고 요약을 만든다 —
+    네트워크 없이(fetcher 주입) 검증. 창이 없으면 fetcher를 부르지 않는다."""
+    from datetime import datetime, timedelta, timezone
+
+    from climate_risk.advisory.kma_observation import StationRainfall, StationRainfallWindow
+    from climate_risk.advisory.schema import AdvisoryEvent
+    from climate_risk.agents.advisory_agent import AdvisoryAgentOutput
+    from climate_risk.portfolio import recalc
+    from climate_risk.portfolio.loader import save_portfolio
+    from climate_risk.portfolio.schema import PortfolioRecord
+
+    kst = timezone(timedelta(hours=9))
+    records = [
+        PortfolioRecord("G-1", "a", "아파트", 1.0, 2.0, 0.5, 50.0, 1000.0, lat=34.870, lon=128.705, region_code="48310", geocode_confidence="OK"),
+        PortfolioRecord("G-2", "b", "아파트", 1.0, 2.0, 0.5, 50.0, 1000.0, lat=34.700, lon=128.600, region_code="48310", geocode_confidence="OK"),
+    ]
+    path = tmp_path / "p.json"
+    save_portfolio(records, path)
+    event = AdvisoryEvent("e", "2026-08-17T10:40:00+09:00", "exact", "특보", "호우 경보 변경", "호우 경보", "https://apihub.kma.go.kr/", "", severity_level="경보")
+    advisory = AdvisoryAgentOutput(active_warnings=[], trigger_event=True, mode="historical", timeline=[event], region_code="48310", status="OK", source_id="t")
+
+    def fake_flood(lat, lon, **kwargs):
+        return FloodAgentOutput(flood=in_scope_flood, source_id="flood:test.shp", field_sources={})
+
+    def fake_building(**kwargs):
+        return BuildingAgentOutput(vulnerability_score=70.0, contributing_factors=[], source="test", source_id="building:test", missing_fields=[], status="OK", note=None)
+
+    def fake_scenario(flood, building, collateral_value, seed, n_iterations):
+        eal = EALResult(EAL_mean=1500.0, EAL_p50=1200.0, EAL_p95=3000.0, EAL_p99=4000.0, n_iterations=n_iterations, seed=seed,
+                        distribution_histogram_bins=None, methodology_note="test", status="OK", reason=None)
+        return ScenarioAgentOutput(eal=eal, source_id=f"scenario:mc:seed={seed}")
+
+    monkeypatch.setattr(recalc, "run_flood_agent", fake_flood)
+    monkeypatch.setattr(recalc, "run_building_agent", fake_building)
+    monkeypatch.setattr(recalc, "run_scenario_agent", fake_scenario)
+
+    calls = []
+
+    def fake_fetcher(start, end):
+        calls.append((start, end))
+        return StationRainfallWindow(status="OK", stations=[
+            StationRainfall("313", "양지암", 34.882, 128.741, 654.3, 3),
+            StationRainfall("999", "남쪽", 34.700, 128.600, 48.0, 3),
+        ], day_status={}, note="")
+
+    window = (datetime(2026, 8, 16, tzinfo=kst), datetime(2026, 8, 18, tzinfo=kst))
+    result = run_portfolio_agent(advisory, portfolio_path=path, alert_log_path=tmp_path / "a.jsonl", severity_alert_log_path=tmp_path / "s.jsonl",
+                                 observation_window=window, station_rainfall_fetcher=fake_fetcher)
+    assert calls == [window]
+    assert [e.collateral_id for e in result.severity_alerts] == ["G-1"]
+    assert result.severity_alerts[0].alert_tier == "심각"
+    assert (result.severity_summary.matched_count, result.severity_summary.alert_count, result.severity_summary.warning_count) == (2, 1, 1)
+    assert result.severity_summary.rain_status == "OK"
+
+    calls.clear()
+    result2 = run_portfolio_agent(advisory, portfolio_path=path, alert_log_path=tmp_path / "a.jsonl", severity_alert_log_path=tmp_path / "s.jsonl",
+                                  station_rainfall_fetcher=fake_fetcher)
+    assert calls == []  # 창 없음 → 강수 조회 안 함
+    assert {e.alert_tier for e in result2.severity_alerts} == {"강수미확인"} and len(result2.severity_alerts) == 2
+    assert result2.severity_summary.rain_status == "NOT_QUERIED"

@@ -61,6 +61,8 @@ def test_real_daegu_suseong_title_shape_parses_into_advisory_event(monkeypatch):
     assert first.time_precision == "exact"
     assert first.source_url.startswith("http")
     assert first.event_id == "kma-live-143-43"
+    # 2026-09-03(계속10): 실시간 모드도 등급을 채워 재심사 지역 트리거가 동작한다
+    assert first.severity_level == "주의보"
 
 
 def test_unparseable_title_falls_back_to_raw_text(monkeypatch):
@@ -115,3 +117,17 @@ def test_geoje_region_maps_to_busan_regional_office_verified(monkeypatch):
 
     assert result.stn_id == "159"
     assert result.stn_id_verified is True
+
+
+def test_live_severity_level_parsed_from_title_detail(monkeypatch):
+    items = [
+        {"stnId": "143", "title": "[특보] 제08-50호 : 2026.07.17.21:50 / 호우경보 변경 (*)", "tmFc": 202607172150, "tmSeq": 50},
+        {"stnId": "143", "title": "[특보] 제08-51호 : 2026.08.25.10:00 / 폭염경보 변경·폭염주의보·열대야주의보 발표 (*)", "tmFc": 202608251000, "tmSeq": 51},
+        {"stnId": "143", "title": "제목 형식이 다른 항목", "tmFc": 202608251100, "tmSeq": 52},
+    ]
+    monkeypatch.setattr(live, "_fetch_kma_json", lambda stn_id: _fake_response(items))
+    result = live.run_live_query(region_code="27260")
+    levels = [e.severity_level for e in result.events]
+    assert levels == ["경보", "경보", None]
+    from climate_risk.agents.advisory_agent import is_high_severity_event
+    assert [is_high_severity_event(e) for e in result.events] == [True, False, False]  # 호우경보만 트리거

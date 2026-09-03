@@ -65,6 +65,11 @@ _TRIGGER_EVENT_TYPES = {"특보", "재난문자"}
 # 띄울 만큼 심각하다고 볼 값만 담는다 — PM이 캘리브레이션 필요하면 이 상수만 조정하면 됨
 # (disaster_msg.py RELEVANT_DST_SE_NM과 같은 패턴).
 HIGH_SEVERITY_LEVELS = {"경보", "중대경보", "긴급재난", "위급재난"}
+# 2026-09-03 추가(DEV_LOG.md (계속10)) — 3단계 검증(후보 A2) 결과로 종류 조건을 붙인다:
+# 담보 침수와 물리적으로 직결되는 수문(水文) 재해만 재심사 알림을 켠다. 폭염·강풍·한파 등의
+# 경보는 등급이 높아도 켜지지 않는다(검증에서 알림 빈도 6.43→1.78회/지역·년, 양성 8건 전부 유지).
+HYDRO_WARNING_TYPE_TOKENS: tuple[str, ...] = ("호우", "태풍", "홍수", "폭풍해일")  # 특보 warning_type 부분일치
+HYDRO_DISASTER_MSG_TYPES = frozenset({"호우", "홍수", "태풍"})  # 재난문자 DST_SE_NM 완전일치
 
 STATUS_OK = "OK"
 STATUS_NO_CURATED_DATA_FOR_REGION = "NO_CURATED_DATA_FOR_REGION"
@@ -152,10 +157,19 @@ def _disaster_message_to_advisory_event(msg: DisasterMessage) -> AdvisoryEvent:
 
 
 def is_high_severity_event(event: AdvisoryEvent) -> bool:
-    """severity_level이 HIGH_SEVERITY_LEVELS에 있으면 True — severity_level이 None인
-    이벤트(replay/live 큐레이션처럼 심각도를 안 채우는 생산자)는 항상 False.
-    portfolio/severity_alerts.py가 이 함수로 알림 대상 이벤트를 가른다."""
-    return event.severity_level in HIGH_SEVERITY_LEVELS
+    """재심사 알림 지역 트리거(검증 후보 A2, DEV_LOG.md 2026-09-03(계속10)):
+    (특보 ∧ 경보 이상 ∧ 종류가 호우·태풍·홍수·폭풍해일) 또는
+    (재난문자 ∧ 긴급재난 이상 ∧ 재해유형이 호우·홍수·태풍). severity_level이 None인
+    이벤트(큐레이션 등)는 항상 False. portfolio/severity_alerts.py가 이 함수로 알림 대상을 가른다.
+    2026-08-31 최초 규칙(종류 무관, 등급만)은 evaluation/trigger_candidates.py의 C1로 보존."""
+    if event.severity_level not in HIGH_SEVERITY_LEVELS:
+        return False
+    warning_type = event.warning_type or ""
+    if event.event_type == "특보":
+        return any(tok in warning_type for tok in HYDRO_WARNING_TYPE_TOKENS)
+    if event.event_type == "재난문자":
+        return warning_type in HYDRO_DISASTER_MSG_TYPES
+    return False
 
 
 def _disaster_msg_supplemental_events(region_code: str, start: datetime, end: datetime) -> list[AdvisoryEvent]:

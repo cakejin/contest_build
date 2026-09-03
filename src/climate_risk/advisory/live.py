@@ -67,6 +67,17 @@ def _tm_fc_to_iso(tm_fc: int) -> str:
     return dt.isoformat()
 
 
+def _severity_from_detail(detail: str) -> str | None:
+    """실시간 특보 제목의 detail("호우경보 발표", "폭염주의보 변경·열대야주의보 발표" 등)에서
+    등급을 읽는다 — "경보"가 하나라도 있으면 경보, 아니면 주의보, 둘 다 없으면 None
+    (2026-09-03(계속10): 실시간 모드에서도 재심사 알림 지역 트리거가 동작하게 하기 위함)."""
+    if "경보" in detail:
+        return "경보"
+    if "주의보" in detail:
+        return "주의보"
+    return None
+
+
 def _item_to_event(item: dict) -> AdvisoryEvent:
     title = item["title"]
     match = _TITLE_RE.match(title)
@@ -80,6 +91,7 @@ def _item_to_event(item: dict) -> AdvisoryEvent:
         description=title,
         source_url=_SOURCE_URL,
         target_region_text=f"기상청 특보구역 stnId={item['stnId']}",
+        severity_level=_severity_from_detail(detail),
     )
 
 

@@ -240,7 +240,8 @@ def test_assess_with_query_date_uses_historical_mode_and_24h_window(monkeypatch)
 
     assert res.status_code == 200
     assert captured["mode"] == "historical"
-    assert captured["historical_start"].isoformat() == "2022-09-06T00:00:00+09:00"
+    # 2026-09-03(계속10): 전날 밤 발표된 경보(힌남노 09-05 22:00 발표)를 놓치지 않도록 하루 앞으로 넓힘
+    assert captured["historical_start"].isoformat() == "2022-09-05T00:00:00+09:00"
     assert captured["historical_end"].isoformat() == "2022-09-07T00:00:00+09:00"
 
 

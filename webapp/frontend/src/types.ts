@@ -155,6 +155,26 @@ export interface SeverityAlert {
   event_description: string
   issued_at: string
   source_url: string
+  alert_tier: '심각' | '주의' | '강수미확인' | string
+  rain_mm: number | null
+  rain_station: string | null
+  rain_station_km: number | null
+}
+
+export interface SeverityAlertSummary {
+  matched_count: number
+  alert_count: number
+  warning_count: number
+  advisory_count: number
+  rain_unknown_count: number
+  region_triggered: boolean
+  rain_status: string
+  rain_note: string
+  threshold_advisory_mm: number
+  threshold_warning_mm: number
+  threshold_basis: string
+  representative_event: string | null
+  representative_issued_at: string | null
 }
 
 export interface PortfolioBatch {
@@ -162,6 +182,7 @@ export interface PortfolioBatch {
   total_records: number
   alerts: PortfolioAlert[]
   severity_alerts: SeverityAlert[]
+  severity_summary?: SeverityAlertSummary
 }
 
 export interface EsgRecommendation {

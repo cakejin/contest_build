@@ -5,10 +5,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
-from climate_risk.agents.advisory_agent import AdvisoryAgentOutput
+from climate_risk.advisory.kma_observation import StationRainfallWindow, fetch_station_rainfall_window
+from climate_risk.agents.advisory_agent import AdvisoryAgentOutput, is_high_severity_event
 from climate_risk.config import (
     ALERT_QUEUE_LOG_PATH,
     DEFAULT_EAL_ITERATIONS,
@@ -23,9 +26,12 @@ from climate_risk.portfolio.filter import filter_by_region
 from climate_risk.portfolio.loader import load_portfolio
 from climate_risk.portfolio.recalc import PortfolioRecalcResult, recalc_subset
 from climate_risk.portfolio.severity_alerts import (
+    RAIN_STATUS_NOT_QUERIED,
     SeverityAlertQueueEntry,
+    SeverityAlertSummary,
     append_to_severity_alert_queue_log,
     build_severity_alert_queue,
+    summarize_severity_alerts,
 )
 
 
@@ -42,6 +48,8 @@ class PortfolioBatchResult:
     # 심각도 기반 알림. EAL 재계산 결과를 전혀 참조하지 않으므로 alerts가 빈 리스트여도
     # 채워질 수 있다(거제 2026-08 실호우 재현에서 확인된 공백을 메움).
     severity_alerts: list[SeverityAlertQueueEntry]
+    # 2026-09-03(계속10) — 지역별 최종 알림 1건(매칭 N건 중 주의 a·심각 s, 임계값·근거 포함).
+    severity_summary: SeverityAlertSummary
     disclosure: str
 
 
@@ -53,6 +61,10 @@ def run_portfolio_agent(
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
     alert_log_path: Path = ALERT_QUEUE_LOG_PATH,
     severity_alert_log_path: Path = SEVERITY_ALERT_QUEUE_LOG_PATH,
+    # 2026-09-03(계속10) — 담보별 강수 등급용 관측 창. None이면 강수 조회를 생략하고 매칭 담보
+    # 전원을 "강수미확인"으로 유지한다(네트워크 호출 없음 — 기존 호출부·테스트와 동작 호환).
+    observation_window: tuple[datetime, datetime] | None = None,
+    station_rainfall_fetcher: Callable[[datetime, datetime], StationRainfallWindow] = fetch_station_rainfall_window,
 ) -> PortfolioBatchResult:
     portfolio = load_portfolio(portfolio_path)
     filter_result = filter_by_region(portfolio, advisory.region_code)
@@ -61,8 +73,19 @@ def run_portfolio_agent(
     alerts = build_alert_queue(filter_result.matched, recalculated, threshold_pct=threshold_pct)
     append_to_alert_queue_log(alerts, alert_log_path)
 
-    severity_alerts = build_severity_alert_queue(filter_result.matched, advisory.timeline)
+    # 지역 트리거가 켜졌고 관측 창이 주어진 경우에만 강수를 조회한다(불필요한 API 호출 방지).
+    station_rainfall = None
+    rain_status, rain_note = RAIN_STATUS_NOT_QUERIED, ""
+    region_triggered = any(is_high_severity_event(e) for e in advisory.timeline)
+    if observation_window is not None and region_triggered and filter_result.matched:
+        window = station_rainfall_fetcher(*observation_window)
+        rain_status, rain_note = window.status, window.note
+        station_rainfall = window.stations if window.stations else None
+    severity_alerts = build_severity_alert_queue(filter_result.matched, advisory.timeline, station_rainfall)
     append_to_severity_alert_queue_log(severity_alerts, severity_alert_log_path)
+    severity_summary = summarize_severity_alerts(
+        filter_result.matched, advisory.timeline, severity_alerts, rain_status=rain_status, rain_note=rain_note
+    )
 
     return PortfolioBatchResult(
         region_code=advisory.region_code,
@@ -73,5 +96,6 @@ def run_portfolio_agent(
         recalculated=recalculated,
         alerts=alerts,
         severity_alerts=severity_alerts,
+        severity_summary=severity_summary,
         disclosure=HITL_WATERMARK_TEXT,
     )

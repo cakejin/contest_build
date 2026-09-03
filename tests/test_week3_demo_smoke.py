@@ -70,7 +70,13 @@ def _fake_scenario(flood, building, collateral_value, seed, n_iterations):
     return ScenarioAgentOutput(eal=eal, source_id=f"scenario:mc:seed={seed}")
 
 
-def _fake_portfolio_agent(advisory, portfolio_path=None, seed=None, n_iterations=None):
+def _empty_summary():
+    from climate_risk.portfolio.severity_alerts import RAIN_STATUS_NOT_QUERIED, summarize_severity_alerts
+
+    return summarize_severity_alerts([], [], [], rain_status=RAIN_STATUS_NOT_QUERIED)
+
+
+def _fake_portfolio_agent(advisory, portfolio_path=None, seed=None, n_iterations=None, observation_window=None, **_kw):
     from climate_risk.agents.portfolio_agent import PortfolioBatchResult
 
     _fake_portfolio_agent.calls.append({"seed": seed, "n_iterations": n_iterations})
@@ -83,6 +89,7 @@ def _fake_portfolio_agent(advisory, portfolio_path=None, seed=None, n_iterations
         recalculated=[],
         alerts=[],
         severity_alerts=[],
+        severity_summary=_empty_summary(),
         disclosure="test",
     )
 

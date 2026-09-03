@@ -13,7 +13,9 @@ graph/run.py의 run_pipeline()과 달리 flood/building/scenario를 dict가 아�
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+_KST = timezone(timedelta(hours=9))
 from pathlib import Path
 from typing import Any, Callable
 
@@ -102,8 +104,18 @@ def run_week3_demo(
     portfolio_batch = None
     if advisory.trigger_event:
         _notify(on_stage, "portfolio", "발효된 특보에 따라 포트폴리오를 재계산하고 있어요")
+        # 2026-09-03(계속10) — 담보별 강수 등급용 관측 창: historical은 조회 구간 그대로,
+        # live는 어제~오늘(일강수는 하루 단위), replay는 큐레이션 시점이 없어 생략(강수미확인).
+        if mode == "historical" and historical_start is not None and historical_end is not None:
+            observation_window: tuple[datetime, datetime] | None = (historical_start, historical_end)
+        elif mode == "live":
+            now = datetime.now(tz=_KST)
+            observation_window = (now - timedelta(days=1), now)
+        else:
+            observation_window = None
         portfolio_batch = run_portfolio_agent(
-            advisory, portfolio_path=portfolio_path, seed=seed, n_iterations=n_iterations
+            advisory, portfolio_path=portfolio_path, seed=seed, n_iterations=n_iterations,
+            observation_window=observation_window,
         )
 
     _notify(on_stage, "done", "완료됐어요")
