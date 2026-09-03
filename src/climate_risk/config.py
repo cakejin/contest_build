@@ -159,6 +159,12 @@ HINNAMNO_TIMELINE_PATH = CURATED_DATA_DIR / "hinnamno_2022" / "events.json"
 # region_code=27260(대구 수성구), HANDOVER.md §⑦ PM 항목 B6 해결(DEV_LOG.md 참조).
 DAEGU_SUSEONG_2026_TIMELINE_PATH = CURATED_DATA_DIR / "daegu_suseong_2026" / "events.json"
 
+# 2026-09-03 추가(DEV_LOG.md 참조) — 재심사 알림 트리거 후보 4분면 검증 하네스
+# (evaluation/alert_validation.py)의 라벨셋·캐시 디렉터리. 라벨 파일(labeled_events.json)은
+# 수동 큐레이션(피해 확인 근거 source_url 필수), kma_history/·timelines/는 라이브 API를
+# 한 번 호출해 저장한 오프라인 fixture(flood_marks_validation과 같은 관례, data/는 gitignore).
+ALERT_VALIDATION_DIR = CURATED_DATA_DIR / "alert_validation"
+
 # Week4 이후 보강 — 기상청 라이브 특보 API(advisory/live.py). 2026-08-12 실호출로 엔드포인트·
 # 파라미터 확정(DEV_LOG.md 참조): data.go.kr 호스팅, DATA_GO_KR_API_KEY 사용(KMA_API_HUB_KEY
 # 아님 — 별도 포털/키), serviceKey는 이미 percent-encoding된 값이므로 재인코딩 금지
@@ -224,6 +230,14 @@ SHP_FILENAME_TO_REGION_CODE: dict[str, str] = {
 # 명시된 잠정치다. Week2의 w1~w4·AEP_BY_FREQ_LABEL과 동일한 패턴 — 이름 붙은 상수로 노출해
 # 나중에 실측 골든셋으로 캘리브레이션할 자리를 코드에 선점해둔다.
 EAL_ALERT_THRESHOLD_PCT = 0.20  # 잠정치 — EAL 변화율이 이 값 이상이면 재심사 알림 큐에 등재
+# 2026-09-03 추가(DEV_LOG.md (계속8)·(계속10)) — 특보·강수 기반 재심사 알림의 담보별 2단계 임계값.
+# 담보에서 가장 가까운 지상관측소의 조회 창 내 최대 일강수(mm)가 이 값 이상이면 주의/심각.
+# 근거: 기상청 호우주의보(12시간 110mm)·호우경보(12시간 180mm) 발령 기준의 일강수 근사 —
+# 12시간 기준을 24시간 누적에 대면 느슨해지는 방향임을 명시. 심사역 화면에서 바꾸는 값이 아니라
+# 설정 상수(EAL_ALERT_THRESHOLD_PCT와 같은 관례)이며 대시보드에는 값과 근거를 표기한다.
+REASSESSMENT_RAIN_THRESHOLD_ADVISORY_MM = 110.0
+REASSESSMENT_RAIN_THRESHOLD_WARNING_MM = 180.0
+REASSESSMENT_RAIN_THRESHOLD_BASIS = "기상청 호우주의보(12시간 110mm)·호우경보(12시간 180mm) 기준의 일강수 근사"
 CITATION_FAILURE_FALLBACK_THRESHOLD = 0.30  # 잠정치 — HANDOVER §4.2 2.5 "예 30%"
 
 MEMO_SCHEMA_PATH = (
