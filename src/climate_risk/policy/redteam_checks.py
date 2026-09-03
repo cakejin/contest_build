@@ -8,6 +8,8 @@
 - 시나리오2(특보-금전 트리거 오연동): 특보 출력이 EAL 계산 시그니처에 물리적으로 못 들어감
 - 시나리오4(GIS 데이터 공백 위음성): evaluation.metrics.coverage_gate_metric()에 위임
 - 시나리오9(블루라이닝 문구 유출): 금지어 필터가 적대적 문장을 실제로 잡는지
+- 시나리오_severity_isolation(2026-08-31 추가, DEV_LOG.md 참조): 심각도 기반 알림 채널
+  (portfolio/severity_alerts.py) 추가 이후에도 시나리오2와 동일한 불변식이 유지되는지
 """
 
 from __future__ import annotations
@@ -110,6 +112,19 @@ def check_scenario2_advisory_isolation() -> dict:
     return {"scenario": "2", "passed": passed, "detail": {"scenario_agent_params": params}}
 
 
+def check_scenario_severity_isolation() -> dict:
+    """2026-08-31 추가(DEV_LOG.md 참조) — 심각도 기반 알림 채널(portfolio/severity_alerts.py)
+    추가 이후에도 EAL 계산 코어가 특보 심각도를 받지 않는지 재확인한다.
+    check_scenario2_advisory_isolation()과 같은 정신: run_scenario_agent 시그니처에
+    advisory/severity 계열 파라미터가 여전히 없다는 것 자체가, 새 알림 채널이 EAL
+    금전 계산 경로를 건드리지 않았다는 코드 레벨 증거다."""
+    params = list(inspect.signature(run_scenario_agent).parameters)
+    forbidden = ("advisory", "severity")
+    leaked = [p for p in params if any(f in p.lower() for f in forbidden)]
+    passed = len(leaked) == 0
+    return {"scenario": "severity_isolation", "passed": passed, "detail": {"scenario_agent_params": params, "leaked_params": leaked}}
+
+
 def check_scenario4_coverage_gate() -> dict:
     metric = coverage_gate_metric()
     passed = metric["failed"] == 0
@@ -130,4 +145,5 @@ def run_all_redteam_checks() -> list[dict]:
         check_scenario2_advisory_isolation(),
         check_scenario4_coverage_gate(),
         check_scenario9_forbidden_phrase_leak(),
+        check_scenario_severity_isolation(),
     ]

@@ -31,7 +31,7 @@ def test_week4_demo_adds_esg_eval_and_redteam_keys(monkeypatch):
     assert result["eval_metrics"]["coverage_gate"]["failed"] == 0
 
     redteam_scenarios = [c["scenario"] for c in result["redteam_checks"]]
-    assert redteam_scenarios == ["1", "2", "4", "9"]
+    assert redteam_scenarios == ["1", "2", "4", "9", "severity_isolation"]
     assert all(c["passed"] for c in result["redteam_checks"])
 
 

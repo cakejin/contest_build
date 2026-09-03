@@ -16,6 +16,7 @@ from climate_risk.policy.redteam_checks import (
     check_scenario2_advisory_isolation,
     check_scenario4_coverage_gate,
     check_scenario9_forbidden_phrase_leak,
+    check_scenario_severity_isolation,
     run_all_redteam_checks,
 )
 from climate_risk.scenario.eal import EALResult
@@ -47,9 +48,18 @@ def test_scenario9_forbidden_phrase_leak_detected():
         assert entry["matches"], entry["text"]
 
 
-def test_run_all_redteam_checks_covers_four_scenarios():
+def test_scenario_severity_isolation_passes():
+    """2026-08-31 추가(DEV_LOG.md 참조) — 심각도 기반 알림 채널
+    (portfolio/severity_alerts.py) 추가 이후에도 EAL 계산 코어가 여전히
+    advisory/severity 파라미터를 받지 않는지 확인."""
+    result = check_scenario_severity_isolation()
+    assert result["passed"] is True
+    assert result["detail"]["leaked_params"] == []
+
+
+def test_run_all_redteam_checks_covers_five_scenarios():
     results = run_all_redteam_checks()
-    assert [r["scenario"] for r in results] == ["1", "2", "4", "9"]
+    assert [r["scenario"] for r in results] == ["1", "2", "4", "9", "severity_isolation"]
     assert all(r["passed"] for r in results)
 
 

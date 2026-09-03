@@ -60,6 +60,12 @@ _CURATED_OVERLAP_WINDOWS: list[tuple[str, Path, datetime, datetime]] = [
 
 _TRIGGER_EVENT_TYPES = {"특보", "재난문자"}
 
+# 2026-08-31 추가(DEV_LOG.md 참조) — "심각도 기반 알림 채널"(portfolio/severity_alerts.py)이
+# 참조하는 허용목록. lvl_label(특보 이력)·emrg_step_nm(재난문자) 값 중 재심사 알림을
+# 띄울 만큼 심각하다고 볼 값만 담는다 — PM이 캘리브레이션 필요하면 이 상수만 조정하면 됨
+# (disaster_msg.py RELEVANT_DST_SE_NM과 같은 패턴).
+HIGH_SEVERITY_LEVELS = {"경보", "중대경보", "긴급재난", "위급재난"}
+
 STATUS_OK = "OK"
 STATUS_NO_CURATED_DATA_FOR_REGION = "NO_CURATED_DATA_FOR_REGION"
 STATUS_LIVE_UPSTREAM_ERROR = "LIVE_UPSTREAM_ERROR"
@@ -117,6 +123,7 @@ def _historical_event_to_advisory_event(event: HistoricalWarningEvent) -> Adviso
         description=description,
         source_url=_HISTORICAL_SOURCE_URL,
         target_region_text=f"기상청 특보구역 reg_id={event.reg_id}",
+        severity_level=event.lvl_label,
     )
 
 
@@ -140,7 +147,15 @@ def _disaster_message_to_advisory_event(msg: DisasterMessage) -> AdvisoryEvent:
         description=f"[{msg.dst_se_nm}/{msg.emrg_step_nm}] {msg_preview}",
         source_url=_DISASTER_MSG_SOURCE_URL,
         target_region_text=msg.rcptn_rgn_nm.strip(),
+        severity_level=msg.emrg_step_nm,
     )
+
+
+def is_high_severity_event(event: AdvisoryEvent) -> bool:
+    """severity_level이 HIGH_SEVERITY_LEVELS에 있으면 True — severity_level이 None인
+    이벤트(replay/live 큐레이션처럼 심각도를 안 채우는 생산자)는 항상 False.
+    portfolio/severity_alerts.py가 이 함수로 알림 대상 이벤트를 가른다."""
+    return event.severity_level in HIGH_SEVERITY_LEVELS
 
 
 def _disaster_msg_supplemental_events(region_code: str, start: datetime, end: datetime) -> list[AdvisoryEvent]:

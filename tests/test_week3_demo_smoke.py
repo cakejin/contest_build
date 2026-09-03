@@ -82,6 +82,7 @@ def _fake_portfolio_agent(advisory, portfolio_path=None, seed=None, n_iterations
         other_region_count=0,
         recalculated=[],
         alerts=[],
+        severity_alerts=[],
         disclosure="test",
     )
 

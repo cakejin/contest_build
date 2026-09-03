@@ -199,6 +199,12 @@ KMA_WRN_REG_URL = "https://apihub.kma.go.kr/api/typ01/url/wrn_reg.php"
 PORTFOLIO_DATA_PATH = CURATED_DATA_DIR / "portfolio" / "synthetic_portfolio.json"
 AUDIT_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "reviewer_ack_log.jsonl"
 ALERT_QUEUE_LOG_PATH = REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "alert_queue_log.jsonl"
+# 2026-08-31 추가(DEV_LOG.md 참조) — 심각도 기반 알림 채널(portfolio/severity_alerts.py)
+# 전용 로그. EAL 임계치 알림(위 ALERT_QUEUE_LOG_PATH)과 완전히 별도 파일로 분리한다 —
+# 두 채널이 서로 다른 신호(물리 데이터 변화 vs 특보 심각도)에서 나온다는 걸 로그 구조로도 보존.
+SEVERITY_ALERT_QUEUE_LOG_PATH = (
+    REPO_ROOT / "data" / "climate-collateral-underwriting-ai" / "audit" / "severity_alert_queue_log.jsonl"
+)
 # 2026-08-18 추가(DEV_LOG.md 참조) — 라이브 모드 기상청 API 조회 결과를 append-only로
 # 적재한다. 기상청 API 자체가 "지금 시점"만 조회 가능(과거 조회 불가, advisory/live.py
 # 참조)해서, 이 로그가 쌓여야만 나중에 "이 날짜에 이 지역에 실제로 무슨 특보가 있었는지"를

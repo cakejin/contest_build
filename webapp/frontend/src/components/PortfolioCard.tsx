@@ -4,6 +4,61 @@ import { KvRow } from './KvRow'
 import { PctBadge } from './PctBadge'
 import { fmtWon } from '../lib/format'
 
+const SEVERITY_SOURCE_LABEL: Record<string, string> = {
+  historical_warning: '기상특보',
+  disaster_msg: '재난문자',
+}
+
+// EAL 변화율 알림(위 표)과 완전히 독립된 채널 — 특보/재난문자 심각도(경보 이상·긴급재난
+// 이상)만으로 뜬다. 매칭된 담보 전원이 같은 대표 이벤트를 공유하므로(portfolio/severity_alerts.py
+// build_severity_alert_queue) 이벤트 정보는 한 번만 보여주고 담보ID는 칩으로 나열한다.
+function SeverityAlertSection({ portfolioBatch }: { portfolioBatch: PortfolioBatch }) {
+  const alerts = portfolioBatch.severity_alerts ?? []
+  return (
+    <div className="mt-4 pt-4 border-t border-surface-alt">
+      <h3 className="text-[13px] font-bold text-ink mb-2">
+        특보 심각도 알림 <span className="text-muted font-normal">— EAL 변화와 무관한 별도 채널</span>
+      </h3>
+      {alerts.length === 0 ? (
+        <div className="text-xs text-muted bg-surface-alt rounded-lg py-3 px-3.5">
+          이번 조회 구간에 경보 이상 특보·긴급재난 이상 재난문자가 없어 심각도 알림이 없어요.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="inline-block bg-[#fdecea] text-[#8a1f12] rounded-full py-1 px-2.5 text-xs font-bold">
+              {alerts[0].severity_level}
+            </span>
+            <span className="text-xs text-muted">
+              {SEVERITY_SOURCE_LABEL[alerts[0].severity_source] ?? alerts[0].severity_source} · {alerts[0].issued_at}
+            </span>
+          </div>
+          <p className="text-xs text-ink mb-2">{alerts[0].event_description}</p>
+          <a
+            href={alerts[0].source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-title font-semibold"
+          >
+            출처 확인
+          </a>
+          <div className="mt-2">
+            <span className="text-xs text-muted mr-1.5">영향 담보 {alerts.length}건</span>
+            {alerts.map((a) => (
+              <span
+                key={a.collateral_id}
+                className="inline-block bg-accent-soft text-title rounded-full py-1 px-2.5 text-xs font-semibold mr-1 mt-1"
+              >
+                {a.collateral_id}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function PortfolioCard({
   portfolioBatch,
   esgRecommendations,
@@ -68,6 +123,7 @@ export function PortfolioCard({
               </tbody>
             </table>
           )}
+          <SeverityAlertSection portfolioBatch={portfolioBatch} />
         </>
       )}
     </Card>

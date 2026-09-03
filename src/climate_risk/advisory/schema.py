@@ -31,6 +31,11 @@ class AdvisoryEvent:
     description: str
     source_url: str
     target_region_text: str
+    # 2026-08-31 추가(DEV_LOG.md 참조) — 특보/재난문자 원자료에 이미 있던 심각도값을
+    # 그대로 보존한다(historical: lvl_label 예비/주의보/경보/중대경보, disaster_msg:
+    # emrg_step_nm 안전안내/긴급재난/위급재난). 기본값 None이라 이 필드를 채우지 않는
+    # 기존 생산자(replay·live)와 기존 소비자는 전혀 영향받지 않는다.
+    severity_level: str | None = None
 
     @property
     def source_id(self) -> str:

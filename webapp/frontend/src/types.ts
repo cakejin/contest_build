@@ -144,10 +144,24 @@ export interface PortfolioAlert {
   insurance_covered: boolean | null
 }
 
+// 2026-08-31 추가(DEV_LOG.md 참조) — EAL 변화율 알림(위 PortfolioAlert)과 완전히 독립된
+// 채널. EAL 재계산 결과와 무관하게 특보/재난문자 자체의 심각도(경보 이상·긴급재난 이상)만
+// 보고 뜬다 — 거제 2026-08 실호우처럼 EAL 채널이 조용해도(0% 변화) 여기는 뜰 수 있다.
+export interface SeverityAlert {
+  collateral_id: string
+  region_code: string | null
+  severity_level: string
+  severity_source: 'historical_warning' | 'disaster_msg'
+  event_description: string
+  issued_at: string
+  source_url: string
+}
+
 export interface PortfolioBatch {
   matched_count: number
   total_records: number
   alerts: PortfolioAlert[]
+  severity_alerts: SeverityAlert[]
 }
 
 export interface EsgRecommendation {

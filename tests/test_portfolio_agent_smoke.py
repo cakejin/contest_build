@@ -121,12 +121,14 @@ def test_portfolio_agent_end_to_end_with_mocked_agents(monkeypatch, in_scope_flo
 
     portfolio_path = _write_portfolio(tmp_path)
     alert_log_path = tmp_path / "alerts.jsonl"
+    severity_alert_log_path = tmp_path / "severity_alerts.jsonl"
 
     result = run_portfolio_agent(
         _advisory_output(),
         portfolio_path=portfolio_path,
         threshold_pct=0.20,
         alert_log_path=alert_log_path,
+        severity_alert_log_path=severity_alert_log_path,
     )
 
     assert result.total_records == 3
@@ -142,3 +144,8 @@ def test_portfolio_agent_end_to_end_with_mocked_agents(monkeypatch, in_scope_flo
     assert alert_log_path.exists()
     logged = [json.loads(line) for line in alert_log_path.read_text(encoding="utf-8").splitlines()]
     assert len(logged) == 1
+
+    # _advisory_output()의 이벤트는 severity_level 미지정(None)이라 심각도 채널은
+    # EAL 채널(위 alerts)과 별개로 비어 있어야 한다 — 두 채널이 서로 다른 신호에서
+    # 나온다는 걸 여기서도 확인.
+    assert result.severity_alerts == []
