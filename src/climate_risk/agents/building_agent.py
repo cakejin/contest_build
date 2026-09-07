@@ -17,6 +17,7 @@ building/brhub.py(원자료 조회), building/vulnerability.py(스코어링) 세
 from __future__ import annotations
 
 import datetime
+import logging
 from dataclasses import dataclass
 
 from climate_risk.agents.flood_agent import FloodAgentOutput
@@ -35,6 +36,17 @@ _RESOLUTION_FAILED_NOTE = "주소/좌표에서 건축물대장 조회 코드를 
 _RESOLUTION_API_ERROR_NOTE = "주소/좌표 해석 중 외부 API 호출 실패 — 건물 정보 미확인"
 _API_ERROR_NOTE = "건축HUB API 호출 실패 — 건물 정보 미확인"
 _RESOLUTION_FAILED_SOURCE_ID = "building:resolution_failed"
+
+# 2026-09-07 — 실패 사유가 화면·서버 로그 어디에도 안 남아 "건물취약도가 안 나온다"를 재현·구분할
+# 수 없었다(사용자 리포트: COL-004 2022-09-06, 재현 3회는 전부 정상). 캐치한 예외를 note 뒤에
+# 덧붙이고 warning 로그로도 남긴다 — FAILED 상태 자체의 의미·처리 흐름은 그대로다.
+_log = logging.getLogger(__name__)
+
+
+def _failure_note(base: str, exc: Exception) -> str:
+    detail = f"{type(exc).__name__}: {exc}"
+    _log.warning("building agent FAILED — %s (%s)", base, detail)
+    return f"{base} ({detail})"
 
 # resolve_admin_codes()·fetch_br_title_info()가 "예상된 부재"(None)가 아니라
 # 예외로 실패하는 경우 — V-World/건축HUB 상태 오류(VWorldGeocodeError/BrHubError),
@@ -121,7 +133,7 @@ def run_building_agent(
 
     try:
         admin = resolve_admin_codes(lat=lat, lon=lon, address=address, pnu=pnu)
-    except _EXPECTED_API_FAILURES:
+    except _EXPECTED_API_FAILURES as exc:
         return BuildingAgentOutput(
             vulnerability_score=None,
             contributing_factors=[],
@@ -129,7 +141,7 @@ def run_building_agent(
             source_id=_RESOLUTION_FAILED_SOURCE_ID,
             missing_fields=["전체"],
             status=STATUS_FAILED,
-            note=_RESOLUTION_API_ERROR_NOTE,
+            note=_failure_note(_RESOLUTION_API_ERROR_NOTE, exc),
             floor_exposure=floor_exposure,
         )
     if admin is None:
@@ -148,7 +160,7 @@ def run_building_agent(
 
     try:
         info: BrTitleInfo | None = fetch_br_title_info(admin)
-    except _EXPECTED_API_FAILURES:
+    except _EXPECTED_API_FAILURES as exc:
         return BuildingAgentOutput(
             vulnerability_score=None,
             contributing_factors=[],
@@ -156,7 +168,7 @@ def run_building_agent(
             source_id=source_id,
             missing_fields=["전체"],
             status=STATUS_FAILED,
-            note=_API_ERROR_NOTE,
+            note=_failure_note(_API_ERROR_NOTE, exc),
             floor_exposure=floor_exposure,
         )
 
