@@ -89,8 +89,10 @@ export interface FloorExposure {
 
 export interface BuildingData {
   vulnerability_score: number | null
-  status: string
+  status: string // "OK" | "PARTIAL" | "FAILED"
   contributing_factors: ContributingFactor[]
+  missing_fields?: string[]
+  note?: string | null
   floor_exposure?: FloorExposure | null
 }
 
@@ -101,12 +103,16 @@ export interface EalBin {
 }
 
 export interface EalStats {
-  EAL_mean: number
-  EAL_p95: number
-  EAL_p99: number
+  EAL_mean: number | null
+  EAL_p50: number | null
+  EAL_p95: number | null
+  EAL_p99: number | null
   seed: number
   n_iterations: number
-  distribution_histogram_bins: EalBin[]
+  distribution_histogram_bins: EalBin[] | null
+  methodology_note: string
+  status: string // "OK" | "INSUFFICIENT_INPUT"
+  reason: string | null
 }
 
 export interface ScenarioData {
@@ -133,6 +139,8 @@ export interface AdvisoryWarning {
 
 export interface AdvisoryData {
   active_warnings: AdvisoryWarning[]
+  trigger_event: boolean
+  mode: string
   status: string
 }
 
@@ -207,6 +215,25 @@ export interface ProgressEventPayload {
   stage: string
   message: string
 }
+
+// 2026-09-07(멘토 피드백 1) — 단계별 부분 결과 SSE 이벤트. data는 stage에 따라 AssessResult의
+// 해당 키 값과 완전히 같은 형태다(graph/week3_demo.py::OnPartial 참조).
+export interface PartialEventPayload {
+  stage: string
+  data: unknown
+}
+
+export interface GeocodedData {
+  lat: number
+  lon: number
+  refined_text: string
+  input_address: string
+}
+
+// 도착한 단계만 채워지는 결과 — undefined는 "아직 안 옴", portfolio_batch의 null은 "트리거 없어 생략".
+export type PartialResult = Partial<
+  Pick<AssessResult, 'advisory' | 'flood' | 'building' | 'scenario' | 'memo' | 'portfolio_batch' | 'coverage_label' | 'esg_recommendations' | 'insurance_unconfirmed_count'>
+> & { geocoded?: GeocodedData }
 
 export interface ProgressItem {
   message: string

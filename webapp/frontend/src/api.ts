@@ -1,6 +1,7 @@
 import type {
   AddressSuggestion,
   AssessResult,
+  PartialEventPayload,
   PortfolioListItem,
   ProgressEventPayload,
   RegionPreset,
@@ -46,6 +47,8 @@ export interface AssessParams {
 
 export interface AssessStreamHandlers {
   onProgress: (payload: ProgressEventPayload) => void
+  // 2026-09-07(멘토 피드백 1) — 단계 산출물이 완료 즉시 도착. 마지막 result와 같은 값이다.
+  onPartial: (payload: PartialEventPayload) => void
   onResult: (result: AssessResult) => void
   onError: () => void
 }
@@ -66,6 +69,10 @@ export function startAssessStream(params: AssessParams, handlers: AssessStreamHa
 
   source.addEventListener('progress', (ev) => {
     handlers.onProgress(JSON.parse((ev as MessageEvent).data))
+  })
+
+  source.addEventListener('partial', (ev) => {
+    handlers.onPartial(JSON.parse((ev as MessageEvent).data))
   })
 
   source.addEventListener('result', (ev) => {

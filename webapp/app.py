@@ -233,6 +233,12 @@ def _run_in_background(
     def on_stage(stage: str, message: str) -> None:
         events.put(_sse("progress", {"stage": stage, "message": message}))
 
+    # 2026-09-07(멘토 피드백 1) — 단계별 산출물을 완료 즉시 `partial` 이벤트로 흘려보낸다.
+    # 마지막 `result` 이벤트의 같은 키와 값이 동일하므로 프론트는 도착하는 대로 카드를
+    # 그리다가 result가 오면 통째로 교체하면 된다(graph/week3_demo.py::OnPartial 참조).
+    def on_partial(stage: str, payload: Any) -> None:
+        events.put(_sse("partial", {"stage": stage, "data": payload}))
+
     kwargs: dict[str, Any] = {
         "address": address,
         "collateral_value": collateral_value,
@@ -242,6 +248,7 @@ def _run_in_background(
         "seed": seed,
         "n_iterations": n_iterations,
         "on_stage": on_stage,
+        "on_partial": on_partial,
         "target_floor": target_floor,
         "historical_start": historical_start,
         "historical_end": historical_end,

@@ -36,6 +36,11 @@ from climate_risk.gis import query as gis_query
 from climate_risk.policy.coverage_labels import label_for_flood_result
 
 OnStage = Callable[[str, str], None]
+# 2026-09-07(멘토 피드백 1 — "다 끝나야 결과가 나오는 게 답답하다") — 단계별 부분 결과 훅.
+# on_stage가 "지금 뭘 하는 중"만 알려준다면, on_partial은 그 단계의 실제 산출물(dataclass를
+# dict로 변환한 것)을 완료 즉시 넘긴다. 최종 반환 dict의 같은 키와 값이 완전히 동일하다 —
+# 새 계산은 없고 이미 있는 값을 먼저 흘려보낼 뿐이다. 기본값 None이면 아무 동작 없음.
+OnPartial = Callable[[str, Any], None]
 
 
 def _notify(on_stage: OnStage | None, stage: str, message: str) -> None:
@@ -44,6 +49,12 @@ def _notify(on_stage: OnStage | None, stage: str, message: str) -> None:
     흉내낸 가짜 시퀀스가 아니라 이 함수가 실제로 불리는 시점 그대로를 전달한다."""
     if on_stage is not None:
         on_stage(stage, message)
+
+
+def _emit(on_partial: OnPartial | None, stage: str, payload: Any) -> None:
+    """부분 결과 훅 — 각 에이전트가 끝나는 즉시 그 산출물을 넘긴다(위 OnPartial 주석 참조)."""
+    if on_partial is not None:
+        on_partial(stage, payload)
 
 
 def run_week3_demo(
@@ -64,6 +75,7 @@ def run_week3_demo(
     # 이 값들을 아예 보지 않는다).
     historical_start: datetime | None = None,
     historical_end: datetime | None = None,
+    on_partial: OnPartial | None = None,
 ) -> dict[str, Any]:
     _notify(on_stage, "advisory", "기상특보 이력을 조회하고 있어요")
     advisory = run_advisory_agent(
@@ -73,11 +85,13 @@ def run_week3_demo(
         historical_start=historical_start,
         historical_end=historical_end,
     )
+    _emit(on_partial, "advisory", dataclasses.asdict(advisory))
 
     _notify(on_stage, "geocode", "주소를 좌표로 변환하고 있어요")
     geocoded = geocode_road_address(address)
     if geocoded is None:
         return {"error": "주소 인식 실패 — 주소 수정 요청", "address": address}
+    _emit(on_partial, "geocode", dataclasses.asdict(geocoded))
 
     shp_cache_warm = gis_query._cached_default_regions.cache_info().currsize > 0
     flood_message = (
@@ -87,20 +101,29 @@ def run_week3_demo(
     )
     _notify(on_stage, "flood", flood_message)
     flood = run_flood_agent(geocoded.lat, geocoded.lon)
+    # 커버리지 라벨은 flood 판정에서 파생되는 표시용 문구라 flood와 함께 내려보낸다 —
+    # 화면이 "판정보류/커버리지 밖" 배지를 부분 결과 단계에서도 바로 그릴 수 있게.
+    _emit(
+        on_partial,
+        "flood",
+        {"flood": dataclasses.asdict(flood), "coverage_label": label_for_flood_result(flood.flood)},
+    )
 
     _notify(on_stage, "building", "건축물대장에서 건물 정보를 가져오고 있어요")
     building = run_building_agent(
         lat=geocoded.lat, lon=geocoded.lon, target_floor=target_floor, flood=flood
     )
+    _emit(on_partial, "building", dataclasses.asdict(building))
 
     _notify(on_stage, "scenario", "몬테카를로 시뮬레이션으로 예상 손실액을 계산하고 있어요")
     scenario = run_scenario_agent(
         flood, building, collateral_value, seed=seed, n_iterations=n_iterations
     )
+    _emit(on_partial, "scenario", dataclasses.asdict(scenario))
 
-    _notify(on_stage, "memo", "근거를 인용한 심사메모를 작성하고 있어요")
-    memo = run_memo_agent(flood, building, scenario, advisory=advisory)
-
+    # 2026-09-07(멘토 피드백 1) — 포트폴리오 재계산을 심사메모(LLM 호출, 실측 약 80초)보다 먼저
+    # 돌린다. 둘은 서로 의존하지 않고(메모는 flood/building/scenario/advisory만 읽고, 포트폴리오는
+    # advisory만 읽는다), 재심사 알림이 메모가 끝날 때까지 90초 가까이 가려져 있을 이유가 없다.
     portfolio_batch = None
     if advisory.trigger_event:
         _notify(on_stage, "portfolio", "발효된 특보에 따라 포트폴리오를 재계산하고 있어요")
@@ -117,6 +140,11 @@ def run_week3_demo(
             advisory, portfolio_path=portfolio_path, seed=seed, n_iterations=n_iterations,
             observation_window=observation_window,
         )
+        _emit(on_partial, "portfolio", dataclasses.asdict(portfolio_batch))
+
+    _notify(on_stage, "memo", "근거를 인용한 심사메모를 작성하고 있어요")
+    memo = run_memo_agent(flood, building, scenario, advisory=advisory)
+    _emit(on_partial, "memo", dataclasses.asdict(memo))
 
     _notify(on_stage, "done", "완료됐어요")
 

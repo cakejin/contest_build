@@ -27,7 +27,7 @@ from climate_risk.evaluation.metrics import (
     forbidden_phrase_absence_metric,
 )
 from climate_risk.gis.query import FloodRiskResult
-from climate_risk.graph.week3_demo import OnStage, run_week3_demo
+from climate_risk.graph.week3_demo import OnPartial, OnStage, run_week3_demo
 from climate_risk.memo.schema import MemoAgentOutput, MemoSection, RejectedSentence
 from climate_risk.policy.esg_recommendations import (
     build_esg_recommendations,
@@ -78,6 +78,7 @@ def run_week4_demo(
     target_floor: dict | None = None,
     historical_start: datetime | None = None,
     historical_end: datetime | None = None,
+    on_partial: OnPartial | None = None,
 ) -> dict[str, Any]:
     result = run_week3_demo(
         address=address,
@@ -92,6 +93,7 @@ def run_week4_demo(
         target_floor=target_floor,
         historical_start=historical_start,
         historical_end=historical_end,
+        on_partial=on_partial,
     )
     if "error" in result:
         return result

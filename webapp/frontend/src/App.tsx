@@ -4,7 +4,7 @@ import { AssessForm } from './components/AssessForm'
 import { ProgressList } from './components/ProgressList'
 import { ResultSection } from './components/ResultSection'
 import { fetchRegionPresets, startAssessStream } from './api'
-import type { AssessResult, InputMode, PortfolioListItem, ProgressItem, ResolvedRegion, SubmittedMeta } from './types'
+import type { AssessResult, InputMode, PartialResult, PortfolioListItem, ProgressItem, ResolvedRegion, SubmittedMeta } from './types'
 
 function App() {
   // 2026-08-19(계속, DEV_LOG.md 참조) — "신규 담보 조회"(자유입력)와 "기존 포트폴리오
@@ -33,6 +33,9 @@ function App() {
   const [queryDate, setQueryDate] = useState('')
   const [progressItems, setProgressItems] = useState<ProgressItem[]>([])
   const [result, setResult] = useState<AssessResult | null>(null)
+  // 2026-09-07(멘토 피드백 1) — 단계별 부분 결과. SSE `partial` 이벤트가 오는 대로 채워지고,
+  // 최종 `result`가 오면 그쪽이 화면의 원천이 된다(값은 동일 — 부분 결과는 먼저 보여주기용).
+  const [partial, setPartial] = useState<PartialResult>({})
   const [loading, setLoading] = useState(false)
   const [connectionError, setConnectionError] = useState(false)
   const closeStreamRef = useRef<(() => void) | null>(null)
@@ -67,6 +70,7 @@ function App() {
     setLoading(true)
     setConnectionError(false)
     setResult(null)
+    setPartial({})
     setProgressItems([])
     setSubmittedMeta({
       address,
@@ -89,6 +93,31 @@ function App() {
             ...prev.map((it) => (it.status === 'active' ? { ...it, status: 'done' as const } : it)),
             { message: payload.message, status: 'active' as const },
           ])
+        },
+        onPartial: ({ stage, data }) => {
+          setPartial((prev) => {
+            switch (stage) {
+              case 'advisory':
+                return { ...prev, advisory: data as PartialResult['advisory'] }
+              case 'geocode':
+                return { ...prev, geocoded: data as PartialResult['geocoded'] }
+              case 'flood': {
+                // data.flood는 FloodAgentOutput 전체(asdict) — 최종 result.flood와 같은 형태(FloodData)다.
+                const d = data as { flood: PartialResult['flood']; coverage_label: string | null }
+                return { ...prev, flood: d.flood, coverage_label: d.coverage_label ?? undefined }
+              }
+              case 'building':
+                return { ...prev, building: data as PartialResult['building'] }
+              case 'scenario':
+                return { ...prev, scenario: data as PartialResult['scenario'] }
+              case 'memo':
+                return { ...prev, memo: data as PartialResult['memo'] }
+              case 'portfolio':
+                return { ...prev, portfolio_batch: data as PartialResult['portfolio_batch'] }
+              default:
+                return prev
+            }
+          })
         },
         onResult: (data) => {
           setProgressItems((prev) => prev.map((it) => (it.status === 'active' ? { ...it, status: 'done' as const } : it)))
@@ -138,7 +167,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <ResultSection result={result} loading={loading} meta={submittedMeta} />
+            <ResultSection result={result} partial={partial} loading={loading} meta={submittedMeta} />
           )}
         </section>
       </main>

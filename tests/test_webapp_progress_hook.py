@@ -48,7 +48,7 @@ def test_on_stage_called_in_pipeline_order_when_trigger_fires(monkeypatch):
 
     assert "error" not in result
     assert result["advisory"]["trigger_event"] is True  # 힌남노 실데이터라 포트폴리오 단계까지 실행됨
-    assert seen == ["advisory", "geocode", "flood", "building", "scenario", "memo", "portfolio", "done"]
+    assert seen == ["advisory", "geocode", "flood", "building", "scenario", "portfolio", "memo", "done"]
 
 
 def test_on_stage_skips_portfolio_stage_when_no_trigger(monkeypatch, tmp_path: Path):
@@ -91,4 +91,58 @@ def test_week4_demo_forwards_on_stage_to_week3(monkeypatch):
     )
 
     assert "error" not in result
-    assert seen == ["advisory", "geocode", "flood", "building", "scenario", "memo", "portfolio", "done"]
+    assert seen == ["advisory", "geocode", "flood", "building", "scenario", "portfolio", "memo", "done"]
+
+
+# 2026-09-07(멘토 피드백 1) — on_partial 부분 결과 훅. 각 단계 산출물이 완료 즉시 넘어오고,
+# 최종 반환 dict의 같은 키와 값이 완전히 동일해야 한다(새 계산 없이 먼저 흘려보내기만 함).
+def test_on_partial_omitted_leaves_behavior_unchanged(monkeypatch):
+    _patch_common(monkeypatch)
+    _patch_memo_llm(monkeypatch)
+    _fake_portfolio_agent.calls.clear()
+
+    result = week3_demo.run_week3_demo("테스트주소", collateral_value=5.0e8)
+
+    assert "error" not in result
+
+
+def test_on_partial_emits_each_stage_payload_identical_to_final_result(monkeypatch):
+    _patch_common(monkeypatch)
+    _patch_memo_llm(monkeypatch)
+    _fake_portfolio_agent.calls.clear()
+    partials: list[tuple[str, object]] = []
+
+    result = week4_demo.run_week4_demo(
+        "테스트주소", collateral_value=5.0e8, on_partial=lambda stage, payload: partials.append((stage, payload))
+    )
+
+    assert "error" not in result
+    stages = [s for s, _ in partials]
+    assert stages == ["advisory", "geocode", "flood", "building", "scenario", "portfolio", "memo"]
+    by_stage = dict(partials)
+    assert by_stage["advisory"] == result["advisory"]
+    assert by_stage["geocode"] == result["geocoded"]
+    assert by_stage["flood"] == {"flood": result["flood"], "coverage_label": result["coverage_label"]}
+    assert by_stage["building"] == result["building"]
+    assert by_stage["scenario"] == result["scenario"]
+    assert by_stage["memo"] == result["memo"]
+    assert by_stage["portfolio"] == result["portfolio_batch"]
+
+
+def test_on_partial_stage_arrives_before_next_stage_starts(monkeypatch):
+    """부분 결과가 '다음 단계 시작 알림(on_stage)'보다 먼저 와야 화면이 즉시 갱신된다."""
+    _patch_common(monkeypatch)
+    _patch_memo_llm(monkeypatch)
+    _fake_portfolio_agent.calls.clear()
+    timeline: list[str] = []
+
+    week3_demo.run_week3_demo(
+        "테스트주소",
+        collateral_value=5.0e8,
+        on_stage=lambda stage, message: timeline.append(f"start:{stage}"),
+        on_partial=lambda stage, payload: timeline.append(f"done:{stage}"),
+    )
+
+    assert timeline.index("done:flood") < timeline.index("start:building")
+    assert timeline.index("done:scenario") < timeline.index("start:portfolio")
+    assert timeline.index("done:portfolio") < timeline.index("start:memo")
