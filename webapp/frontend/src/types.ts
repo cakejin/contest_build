@@ -1,11 +1,18 @@
 export interface RegionPreset {
   id: string
   label: string
+  // 2026-09-08 — "과거 사건 재현" 사건 칩용. sample_date가 없으면 칩으로 그리지 않는다.
+  chip_label?: string | null
   region_code: string
   mode: string
   timeline_path: string | null
   sample_address: string
+  sample_date?: string | null
 }
+
+// 2026-09-08 — 조회 기준 세그먼트. live면 query_date를 보내지 않고(지금 시점 특보),
+// historical이면 날짜 필수. 백엔드 판단 방식(query_date 유무)은 그대로다.
+export type QueryMode = "live" | "historical"
 
 // HANDOVER 논의(DEV_LOG.md 2026-08-18) — 지역 프리셋이 아니라 실제 입력 주소를
 // 지오코딩해 감지한 지역. 담보 평가와 포트폴리오 알림이 항상 같은 지역을 가리키게

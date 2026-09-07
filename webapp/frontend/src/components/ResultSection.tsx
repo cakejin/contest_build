@@ -56,9 +56,22 @@ export function ResultSection({
   if (!result && !loading && !hasPartial) {
     return (
       <Card icon="result" title="결과">
-        <p className="text-muted text-xs">
-          왼쪽에서 주소를 입력하고 "평가 실행"을 누르면 실제 침수판정·건물취약도·예상손실액·심사메모가 여기 표시됩니다.
-        </p>
+        {/* 2026-09-08 — 첫 방문 빈 상태를 3단계 안내로(UX 점검: 빈 상태가 곧 안내). */}
+        <p className="text-sm font-bold text-ink mt-0 mb-1">담보 주소 하나로 침수 위험·건물취약도·예상손실과 근거 인용 심사메모를 만듭니다</p>
+        <p className="text-muted text-xs mt-0 mb-3.5">왼쪽 폼을 위에서부터 채우면 됩니다. 처음이면 "예시 주소 넣기"로 힌남노 사례를 바로 볼 수 있어요.</p>
+        <div className="grid grid-cols-3 max-[600px]:grid-cols-1 gap-2.5">
+          {[
+            ['1 주소 입력', '대구·포항·거제 도로명주소. 지역은 자동 감지'],
+            ['2 조회 기준 선택', '지금 시점 특보, 또는 과거 사건 재현'],
+            ['3 평가 실행', '10초 안에 판정, 약 1분 뒤 심사메모'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-surface-alt rounded-[10px] py-3 px-3.5">
+              <div className="text-[11px] font-bold text-title">{t}</div>
+              <div className="text-[12.5px] text-ink mt-1">{d}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11.5px] text-muted/80 mt-3 mb-0">이 산출물은 AI 기반 참고자료이며 여신 결정이 아닙니다.</p>
       </Card>
     )
   }

@@ -4,7 +4,7 @@ import { AssessForm } from './components/AssessForm'
 import { ProgressList } from './components/ProgressList'
 import { ResultSection } from './components/ResultSection'
 import { fetchRegionPresets, startAssessStream } from './api'
-import type { AssessResult, InputMode, PartialResult, PortfolioListItem, ProgressItem, ResolvedRegion, SubmittedMeta } from './types'
+import type { AssessResult, InputMode, PartialResult, PortfolioListItem, ProgressItem, QueryMode, RegionPreset, ResolvedRegion, SubmittedMeta } from './types'
 
 function App() {
   // 2026-08-19(계속, DEV_LOG.md 참조) — "신규 담보 조회"(자유입력)와 "기존 포트폴리오
@@ -31,6 +31,9 @@ function App() {
   // 사용자 피드백으로 제거했다. 날짜 하나만 있으면 그 날짜의 과거 특보를, 비우면
   // 지금 시점 라이브 특보를 보여준다 — mode 판단은 백엔드가 이 값 유무로 알아서 한다.
   const [queryDate, setQueryDate] = useState('')
+  // 2026-09-08 — 조회 기준을 두 버튼으로 드러냈다(UX 점검: "조회 날짜" 한 칸에 두 모드가 숨어 있었음).
+  const [queryMode, setQueryMode] = useState<QueryMode>('live')
+  const [presets, setPresets] = useState<RegionPreset[]>([])
   const [progressItems, setProgressItems] = useState<ProgressItem[]>([])
   const [result, setResult] = useState<AssessResult | null>(null)
   // 2026-09-07(멘토 피드백 1) — 단계별 부분 결과. SSE `partial` 이벤트가 오는 대로 채워지고,
@@ -41,13 +44,29 @@ function App() {
   const closeStreamRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    // "예시 주소로 채우기" 드롭다운은 제거했다(사용자 요청, DEV_LOG.md 2026-08-19 참조) —
-    // 대신 첫 로딩 시 힌남노 프리셋(포항 남구) 샘플 주소로 조용히 초기값만 채워둔다.
-    fetchRegionPresets().then((data) => {
-      if (data.length > 0) setAddress(data[0].sample_address)
-    })
+    // 2026-09-08 — 첫 화면에 주소를 미리 채우지 않는다(UX 점검: 예시인지 입력값인지 구분이 안 됐음).
+    // 프리셋은 "예시 주소 넣기" 링크와 "과거 사건 재현" 사건 칩에만 쓴다.
+    fetchRegionPresets().then(setPresets)
     return () => closeStreamRef.current?.()
   }, [])
+
+  const handleFillSampleAddress = () => {
+    const first = presets[0]
+    if (first) setAddress(first.sample_address)
+  }
+
+  const handleQueryModeChange = (mode: QueryMode) => {
+    setQueryMode(mode)
+    if (mode === 'live') setQueryDate('')
+  }
+
+  // 사건 칩: 날짜를 채우고, 주소가 비어 있으면 그 사건 지역의 예시 주소도 함께 채운다.
+  const handleEventChip = (preset: RegionPreset) => {
+    if (!preset.sample_date) return
+    setQueryMode('historical')
+    setQueryDate(preset.sample_date)
+    if (inputMode === 'new' && !address.trim()) setAddress(preset.sample_address)
+  }
 
   const handleInputModeChange = (mode: InputMode) => {
     setInputMode(mode)
@@ -65,6 +84,7 @@ function App() {
   }
 
   const handleSubmit = () => {
+    if (queryMode === 'historical' && !queryDate) return
     closeStreamRef.current?.()
 
     setLoading(true)
@@ -144,16 +164,21 @@ function App() {
             floorType={floorType}
             floorNo={floorNo}
             detectedRegion={detectedRegion}
+            queryMode={queryMode}
             queryDate={queryDate}
+            presets={presets}
             submitting={loading}
             onInputModeChange={handleInputModeChange}
             onAddressChange={setAddress}
+            onFillSampleAddress={handleFillSampleAddress}
             onPortfolioSelect={handlePortfolioSelect}
             onRegionResolved={setDetectedRegion}
             onCollateralValueChange={setCollateralValue}
             onFloorTypeChange={setFloorType}
             onFloorNoChange={setFloorNo}
+            onQueryModeChange={handleQueryModeChange}
             onQueryDateChange={setQueryDate}
+            onEventChip={handleEventChip}
             onSubmit={handleSubmit}
           />
           <ProgressList items={progressItems} />

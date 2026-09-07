@@ -58,30 +58,50 @@ async def _no_cache_static(request, call_next):
     return response
 
 # 프론트 드롭다운용 프리셋 — 전부 이미 실측 검증된 조합(PROGRESS.md "Week4 이후 보강" 참조).
+# 2026-09-08 — 입력 폼 수정(UX 점검): "과거 사건 재현" 모드의 사건 칩용으로 sample_date·chip_label을
+# 추가하고 거제 2026-08 실호우(DEV_LOG 2026-08-31, 고현천 8/17 새벽 범람)를 넣었다. 프론트는
+# sample_date가 있는 항목만 칩으로 그린다. 기존 필드(mode/timeline_path)는 그대로 — CLI·기존
+# 테스트 영향 없음.
 _REGION_PRESETS: list[dict[str, Any]] = [
     {
         "id": "pohang-hinnamno",
         "label": "포항 남구 — 태풍 힌남노(2022) 리플레이",
+        "chip_label": "힌남노 · 포항 2022-09-06",
         "region_code": "47111",
         "mode": "replay",
         "timeline_path": str(HINNAMNO_TIMELINE_PATH),
         "sample_address": "경상북도 포항시 남구 인덕로 27",
+        "sample_date": "2022-09-06",
     },
     {
         "id": "daegu-suseong-replay",
         "label": "대구 수성구 — 2026-07 집중호우 리플레이",
+        "chip_label": "집중호우 · 대구 수성구 2026-07-18",
         "region_code": "27260",
         "mode": "replay",
         "timeline_path": str(DAEGU_SUSEONG_2026_TIMELINE_PATH),
         "sample_address": "대구광역시 수성구 지산동",
+        "sample_date": "2026-07-18",
+    },
+    {
+        "id": "geoje-2026-08",
+        "label": "거제시 — 2026-08 집중호우(고현천 범람)",
+        "chip_label": "집중호우 · 거제 2026-08-17",
+        "region_code": "48310",
+        "mode": "historical",
+        "timeline_path": None,
+        "sample_address": "경상남도 거제시 고현천로 52",
+        "sample_date": "2026-08-17",
     },
     {
         "id": "daegu-suseong-live",
         "label": "대구 수성구 — 기상청 라이브 특보",
+        "chip_label": None,
         "region_code": "27260",
         "mode": "live",
         "timeline_path": None,
         "sample_address": "대구광역시 수성구 지산동",
+        "sample_date": None,
     },
 ]
 
