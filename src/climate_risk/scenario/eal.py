@@ -100,10 +100,15 @@ def run_monte_carlo_eal(
     collateral_value: float,
     seed: int = DEFAULT_EAL_SEED,
     n_iterations: int = DEFAULT_EAL_ITERATIONS,
+    barrier_height_m: float = 0.0,
 ) -> EALResult:
     """입력 3종(침수 판정·취약도·담보가액) 중 하나라도 불충분하면 시뮬레이션 자체를
     실행하지 않고 EAL=None+사유를 명시 반환한다 — 허수 EAL 원천 차단
     (HANDOVER.md §4.2 2.4 "실패 시 폴백" 그대로).
+
+    barrier_height_m(2026-09-08 추가, config.ADAPTATION_ASSUMPTION_NOTE): 차수판 등 적응 설비 높이.
+    0이면 기존 경로와 바이트 단위로 동일하다(같은 난수열·같은 연산). 0보다 크면 같은 난수열에서
+    침수심만 max(0, depth − h)로 낮춰 "설치 후" EAL을 낸다 — 발생확률·취약도·손상함수는 그대로.
     """
     if flood.coverage != "IN_SCOPE" or vulnerability_score is None:
         return _insufficient(n_iterations, seed)
@@ -119,6 +124,8 @@ def run_monte_carlo_eal(
         rng.triangular(depth_min, depth_mode, depth_max, n_iterations),
         0.0,
     )
+    if barrier_height_m > 0.0:
+        depths = np.maximum(0.0, depths - barrier_height_m)
     loss_ratio = 1.0 - np.exp(-DEPTH_DAMAGE_K * depths)
     vuln_scale = VULN_SCALE_FLOOR + (VULN_SCALE_CEIL - VULN_SCALE_FLOOR) * (vulnerability_score / 100.0)
     financial_loss = loss_ratio * vuln_scale * collateral_value

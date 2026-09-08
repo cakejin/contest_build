@@ -24,6 +24,28 @@ DEPTH_CLASS_UPPER_BOUND_M: dict[str, float] = {
     "N334": 8.0,
 }
 
+# 2026-09-08 추가 — 화면 표시용 등급 범위(하한, m). 상한은 위 표와 같은 출처(SegCode 문서).
+DEPTH_CLASS_LOWER_BOUND_M: dict[str, float] = {"N330": 0.0, "N331": 0.5, "N332": 1.0, "N333": 2.0, "N334": 5.0}
+DEPTH_CLASS_RANK: dict[str, int] = {"N330": 1, "N331": 2, "N332": 3, "N333": 4, "N334": 5}
+
+
+def depth_class_summary(seg_code: str | None, tier: str | None) -> dict | None:
+    """SEG_CODE → {code, lower_m, upper_m, label, rank, reliable}. tier가 '내부'가 아니면 "가장 가까운
+    폴리곤의 등급"일 뿐 그 좌표의 등급이 아니므로 reliable=False로 표시한다(scenario 계산과 동일 기준)."""
+    if seg_code not in DEPTH_CLASS_UPPER_BOUND_M:
+        return None
+    lo, hi = DEPTH_CLASS_LOWER_BOUND_M[seg_code], DEPTH_CLASS_UPPER_BOUND_M[seg_code]
+    label = "5.0m 이상" if seg_code == "N334" else ("0.5m 미만" if seg_code == "N330" else f"{lo:.1f}~{hi:.1f}m")
+    return {
+        "code": seg_code,
+        "lower_m": lo,
+        "upper_m": hi,
+        "label": label,
+        "rank": DEPTH_CLASS_RANK[seg_code],
+        "rank_max": 5,
+        "reliable": tier == "내부",
+    }
+
 FLOOR_TYPE_GROUND = "지상"
 FLOOR_TYPE_UNDERGROUND = "지하"
 

@@ -780,3 +780,19 @@ AWS 양지암(313) 단일 시각: 카눈 08-10 12:00 RN_DAY 111.5·60분최대 2
 - 검증: 헤드리스 브라우저로 세그먼트 → 힌남노 칩 → 주소·날짜 자동 채움 → 지역 감지 → 층 세그먼트까지 실제 조작 확인. `pytest tests/test_webapp_*.py` 22개 통과.
 
 **영향**: 발표 시연 순서를 "예시 주소 넣기 → 과거 사건 재현 → 힌남노 칩 → 평가 실행"으로 잡으면 클릭 3번으로 끝난다. uvicorn `--reload`가 `webapp/app.py` 변경을 감지하지 못하는 경우가 있었음(src/ 아래는 감지) — 프리셋을 바꾸면 서버를 수동 재시작할 것.
+
+## 2026-09-08(계속3) — 결과 화면 ③단계: 표시용 값 7종 추가 — 그중 적응 투자 전후 EAL·침수흔적 근접·소요시간은 새 결정론 계산
+
+**계획(HANDOVER.md 기준)**: ⑥ 보호형 사용 규율 3항 "인센티브는 인하 방향만(차수판·방수 설비 등 적응 투자 시 우대)" — 우대의 근거 수치를 어떻게 낼지는 미정. §⑧ 층별 리스크에서 SEG_CODE 침수심 등급을 계산에만 쓰고 화면 표기는 없었음. 실측 침수흔적(safemap A2SM_FLUDMARKS_WI)은 평가지표(recall)에만 사용.
+
+**실제(디자인 캔버스 11p 확정안 반영, 멘토·현직자 피드백 "없는 수치는 확장 가능성으로, 있는 데이터는 최대한")**:
+1. **적응 투자 전후 EAL(신규 결정론 규칙)** — `scenario/eal.py::run_monte_carlo_eal(barrier_height_m=…)`: 같은 난수열에서 침수심만 `max(0, depth − h)`로 낮춰 재실행. `h=0`이면 기존 결과와 바이트 단위 동일(회귀 테스트). `agents/scenario_agent.py`가 `config.ADAPTATION_BARRIER_HEIGHTS_M=(0.3, 0.5, 1.0)`로 3개 시나리오를 `adaptation`에 붙임. 실측(COL-004): 776,202 → 599,012(0.3m, −22.8%) / 456,648(0.5m, −41.2%) / 149,999(1.0m, −80.7%). **문헌 근거 없는 잠정 규칙**이며 `ADAPTATION_ASSUMPTION_NOTE`를 화면에 항상 같이 표시. 우대 안내(인하 방향)의 참고치일 뿐 LTV·금리 계산에 연결하지 않음(설계원칙 2·3 유지, redteam 회귀 통과).
+2. **실측 침수흔적 근접 요약** — `evaluation/flood_marks.py::summarize_flood_marks_near`: 좌표 기준 최근접 1건(거리·연도·원인·평균 침수)과 반경 500m/2km 건수. 좌표·원본 레코드는 응답에 넣지 않음(파일의 license_note: 재배포 금지). 파일 없으면 None → 화면 "데이터 없음(위험 낮음 아님)".
+3. **단계별 소요시간** — `webapp/app.py::_stage_durations`: on_stage 실제 호출 시각 차이. `alert_latency_seconds` = 특보 조회 시작 → 포트폴리오 재계산 완료(다음 단계 시작). 실측 15초 안팎. 라이브 모드에서 "특보 발표시각 기준"으로 재정의하는 건 미구현(현재 정의는 조회 시작 기준임을 화면에 명시).
+4. 침수심 등급 범위 — `scenario/floor_exposure.py::depth_class_summary`: SEG_CODE → "1.0~2.0m" 등, tier가 내부가 아니면 reliable=False(가장 가까운 폴리곤의 등급).
+5. 요인별 기여도 — 이미 응답에 있던 `contribution`을 타일로 표시.
+6. 건축물대장 요약 — `BuildingAgentOutput.registry`(연면적·건축면적·지상/지하층·높이·지붕·내진설계·사용승인)를 건축HUB raw에서 추림. 취약도 계산엔 미사용.
+7. 특보 타임라인 — `advisory.timeline` + 백엔드가 고른 `trigger_event_ids`(규칙은 `is_high_severity_event` 하나)로 SVG 타임라인.
+
+**영향**: HANDOVER ⑥ 3항의 "우대"에 참고 수치(적응 투자 전후 EAL)가 생겼으니 기획서·PPT의 보호 조치 장면에 반영할지 PM 판단. 이 규칙은 캘리브레이션 대기 잠정치(`config.py`에 상수·근거 문자열로 고정, 다른 잠정 상수와 같은 관례). 회귀: `tests/test_step3_display_values.py` 6개 + 기존 46개 통과.
+

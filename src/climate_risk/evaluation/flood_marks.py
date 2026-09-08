@@ -13,10 +13,12 @@ EPSG:4326으로 역변환한 근사 centroid). 라이선스 미확인 상태라 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import math
+from dataclasses import asdict, dataclass
+from functools import lru_cache
 from pathlib import Path
 
-from climate_risk.config import REPO_ROOT
+from climate_risk.config import FLOOD_MARKS_NEARBY_RADII_M, REPO_ROOT
 
 FLOOD_MARKS_VALIDATION_PATH = (
     REPO_ROOT
@@ -110,3 +112,61 @@ def load_flood_marks_validation_set(
         license_note=raw["license_note"],
         records=records,
     )
+
+
+# ---- 2026-09-08 추가(DEV_LOG.md 참조) — 담보 좌표 주변 실측 침수흔적 요약(화면 표시용) ----
+
+@dataclass(frozen=True)
+class FloodMarksNearby:
+    nearest_m: float | None
+    nearest_year: str | None
+    nearest_cause: str | None
+    nearest_depth_cm: float | None
+    counts_by_radius_m: dict[str, int]  # {"500": n, "2000": n}
+    total_in_dataset: int
+    dataset: str
+    license_note: str
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6_371_000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(h))
+
+
+@lru_cache(maxsize=1)
+def _cached_validation_set(path_str: str) -> FloodMarksValidationSet:
+    return load_flood_marks_validation_set(Path(path_str))
+
+
+def summarize_flood_marks_near(
+    lat: float,
+    lon: float,
+    path: Path = FLOOD_MARKS_VALIDATION_PATH,
+    radii_m: tuple[float, ...] = FLOOD_MARKS_NEARBY_RADII_M,
+) -> FloodMarksNearby | None:
+    """좌표 주변 실측 침수흔적 건수·최근접 1건. 파일이 없으면 None(데이터 없음 — 위험 없음 아님).
+    좌표·원본 레코드는 반환하지 않는다(재배포 금지 데이터, 파일의 license_note 참조)."""
+    if not Path(path).exists():
+        return None
+    vs = _cached_validation_set(str(path))
+    dists = [(_haversine_m(lat, lon, r.lat, r.lon), r) for r in vs.records]
+    dists.sort(key=lambda t: t[0])
+    counts = {str(int(rad)): sum(1 for d, _ in dists if d <= rad) for rad in radii_m}
+    nearest = dists[0] if dists else None
+    return FloodMarksNearby(
+        nearest_m=round(nearest[0], 1) if nearest else None,
+        nearest_year=nearest[1].flud_year if nearest else None,
+        nearest_cause=nearest[1].cause_category if nearest else None,
+        nearest_depth_cm=nearest[1].avg_fldwtl_cm if nearest else None,
+        counts_by_radius_m=counts,
+        total_in_dataset=len(vs.records),
+        dataset=vs.dataset,
+        license_note=vs.license_note,
+    )
+
+
+def flood_marks_nearby_to_dict(summary: FloodMarksNearby | None) -> dict | None:
+    return asdict(summary) if summary else None

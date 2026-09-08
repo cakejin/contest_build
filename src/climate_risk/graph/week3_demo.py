@@ -19,7 +19,7 @@ _KST = timezone(timedelta(hours=9))
 from pathlib import Path
 from typing import Any, Callable
 
-from climate_risk.agents.advisory_agent import run_advisory_agent
+from climate_risk.agents.advisory_agent import is_high_severity_event, run_advisory_agent
 from climate_risk.agents.building_agent import run_building_agent
 from climate_risk.agents.flood_agent import run_flood_agent
 from climate_risk.agents.memo_agent import run_memo_agent
@@ -33,7 +33,9 @@ from climate_risk.config import (
 )
 from climate_risk.geocoding.vworld import geocode_road_address
 from climate_risk.gis import query as gis_query
+from climate_risk.evaluation.flood_marks import flood_marks_nearby_to_dict, summarize_flood_marks_near
 from climate_risk.policy.coverage_labels import label_for_flood_result
+from climate_risk.scenario.floor_exposure import depth_class_summary
 
 OnStage = Callable[[str, str], None]
 # 2026-09-07(멘토 피드백 1 — "다 끝나야 결과가 나오는 게 답답하다") — 단계별 부분 결과 훅.
@@ -85,7 +87,10 @@ def run_week3_demo(
         historical_start=historical_start,
         historical_end=historical_end,
     )
-    _emit(on_partial, "advisory", dataclasses.asdict(advisory))
+    advisory_dict = dataclasses.asdict(advisory)
+    # 2026-09-08 — 타임라인 표시용: 재심사 트리거를 켠 이벤트 id(규칙은 is_high_severity_event 하나).
+    advisory_dict["trigger_event_ids"] = [e.event_id for e in advisory.timeline if is_high_severity_event(e)]
+    _emit(on_partial, "advisory", advisory_dict)
 
     _notify(on_stage, "geocode", "주소를 좌표로 변환하고 있어요")
     geocoded = geocode_road_address(address)
@@ -103,10 +108,21 @@ def run_week3_demo(
     flood = run_flood_agent(geocoded.lat, geocoded.lon)
     # 커버리지 라벨은 flood 판정에서 파생되는 표시용 문구라 flood와 함께 내려보낸다 —
     # 화면이 "판정보류/커버리지 밖" 배지를 부분 결과 단계에서도 바로 그릴 수 있게.
+    # 2026-09-08 — 화면 표시용 부가 정보(새 판정 아님): 침수심 등급 범위, 좌표 주변 실측 침수흔적 요약.
+    flood_depth_class = depth_class_summary(flood.flood.seg_code, flood.flood.tier)
+    try:
+        flood_marks = flood_marks_nearby_to_dict(summarize_flood_marks_near(geocoded.lat, geocoded.lon))
+    except (OSError, ValueError, KeyError):  # 큐레이션 파일 손상 등 — 표시용이라 파이프라인을 죽이지 않는다
+        flood_marks = None
     _emit(
         on_partial,
         "flood",
-        {"flood": dataclasses.asdict(flood), "coverage_label": label_for_flood_result(flood.flood)},
+        {
+            "flood": dataclasses.asdict(flood),
+            "coverage_label": label_for_flood_result(flood.flood),
+            "flood_depth_class": flood_depth_class,
+            "flood_marks": flood_marks,
+        },
     )
 
     _notify(on_stage, "building", "건축물대장에서 건물 정보를 가져오고 있어요")
@@ -151,8 +167,10 @@ def run_week3_demo(
     return {
         "address": address,
         "geocoded": dataclasses.asdict(geocoded),
-        "advisory": dataclasses.asdict(advisory),
+        "advisory": advisory_dict,
         "flood": dataclasses.asdict(flood),
+        "flood_depth_class": flood_depth_class,
+        "flood_marks": flood_marks,
         "building": dataclasses.asdict(building),
         "scenario": dataclasses.asdict(scenario),
         "memo": dataclasses.asdict(memo),

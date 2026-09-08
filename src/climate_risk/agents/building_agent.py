@@ -75,6 +75,38 @@ class BuildingAgentOutput:
     # HANDOVER.md §⑧(층별 리스크 차등화, 2026-08-18 추가) — target_floor 미입력 시 None
     # (기존 건물 전체 스코어링 경로는 이 필드와 무관하게 그대로 동작한다).
     floor_exposure: FloorExposureResult | None = None
+    # 2026-09-08 추가 — 건축물대장 표시용 요약(취약도 계산엔 쓰이지 않는 필드까지). 건축HUB 응답 raw에서
+    # 추린 값이며 None이면 조회 실패/레코드 없음. 키: tot_area·arch_area·grnd_flr_cnt·ugrnd_flr_cnt·
+    # height_m·roof·earthquake_design(Y/N/None)·bld_name·use_apr_day.
+    registry: dict | None = None
+
+
+_REGISTRY_KEYS = {
+    "tot_area": "totArea",
+    "arch_area": "archArea",
+    "grnd_flr_cnt": "grndFlrCnt",
+    "ugrnd_flr_cnt": "ugrndFlrCnt",
+    "height_m": "heit",
+    "roof": "roofCdNm",
+    "bld_name": "bldNm",
+    "use_apr_day": "useAprDay",
+}
+
+
+def _registry_summary(raw: dict | None) -> dict | None:
+    """건축HUB raw 응답에서 표시용 필드만 추린다 — 값이 공백(' ')이면 None."""
+    if not raw:
+        return None
+    def clean(v):
+        if v is None:
+            return None
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+    out = {k: clean(raw.get(src)) for k, src in _REGISTRY_KEYS.items()}
+    eq = clean(raw.get("rserthqkDsgnApplyYn"))
+    out["earthquake_design"] = None if eq is None else ("Y" if str(eq).strip() in ("1", "Y") else "N")
+    return out
 
 
 def _admin_source_id(admin: AdminCodeMatch) -> str:
@@ -82,7 +114,10 @@ def _admin_source_id(admin: AdminCodeMatch) -> str:
 
 
 def _from_vulnerability_result(
-    result: BuildingVulnerabilityResult, source_id: str, floor_exposure: FloorExposureResult | None
+    result: BuildingVulnerabilityResult,
+    source_id: str,
+    floor_exposure: FloorExposureResult | None,
+    registry: dict | None = None,
 ) -> BuildingAgentOutput:
     return BuildingAgentOutput(
         vulnerability_score=result.vulnerability_score,
@@ -93,6 +128,7 @@ def _from_vulnerability_result(
         status=result.status,
         note=result.note,
         floor_exposure=floor_exposure,
+        registry=registry,
     )
 
 
@@ -179,4 +215,4 @@ def run_building_agent(
         main_purps_cd_nm=info.main_purps_cd_nm if info else None,
         as_of_year=as_of_year,
     )
-    return _from_vulnerability_result(vuln, source_id, floor_exposure)
+    return _from_vulnerability_result(vuln, source_id, floor_exposure, _registry_summary(info.raw if info else None))

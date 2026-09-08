@@ -240,6 +240,19 @@ REASSESSMENT_RAIN_THRESHOLD_WARNING_MM = 180.0
 REASSESSMENT_RAIN_THRESHOLD_BASIS = "기상청 호우주의보(12시간 110mm)·호우경보(12시간 180mm) 기준의 일강수 근사"
 CITATION_FAILURE_FALLBACK_THRESHOLD = 0.30  # 잠정치 — HANDOVER §4.2 2.5 "예 30%"
 
+# 2026-09-08 추가(DEV_LOG.md 참조) — 적응 투자(차수판) 전후 EAL 비교. 결정론 규칙: 차수판 높이만큼
+# 시뮬레이션 침수심을 차감(max(0, depth - h))하고 같은 시드로 재실행한다. 문헌 근거 없는 잠정 규칙이며
+# "인센티브는 인하 방향만"(보호형 규율 3항) 서사의 근거 숫자로만 쓴다 — LTV·금리 계산에 연결하지 않는다.
+ADAPTATION_BARRIER_HEIGHTS_M: tuple[float, ...] = (0.3, 0.5, 1.0)
+ADAPTATION_ASSUMPTION_NOTE = (
+    "차수판 높이만큼 유효 침수심을 차감(max(0, 침수심 − 높이))한 뒤 같은 시드로 몬테카를로를 재실행한 값. "
+    "설비 성능·설치 조건에 대한 실측 근거 없는 잠정 규칙이며, 우대 조건 안내(인하 방향)의 참고치로만 쓴다."
+)
+
+# 2026-09-08 추가 — 실측 침수흔적(safemap A2SM_FLUDMARKS_WI 큐레이션) 근접 조회 반경(m).
+# 재배포 금지 데이터라 화면에는 건수·최근접 거리만 표시하고 좌표·원본은 내보내지 않는다.
+FLOOD_MARKS_NEARBY_RADII_M: tuple[float, ...] = (500.0, 2000.0)
+
 MEMO_SCHEMA_PATH = (
     Path(__file__).resolve().parent / "llm" / "schemas" / "memo_sections.schema.json"
 )

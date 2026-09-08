@@ -13,6 +13,7 @@ import json
 import queue
 import sys
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ from climate_risk.config import (  # noqa: E402
 from climate_risk.geocoding.juso import JusoSearchError, search_road_addresses  # noqa: E402
 from climate_risk.geocoding.vworld import geocode_road_address  # noqa: E402
 from climate_risk.graph.week4_demo import run_week4_demo  # noqa: E402
+from climate_risk.policy.disclosures import ACTION_PHRASE_TEMPLATES  # noqa: E402
 from climate_risk.portfolio.loader import load_portfolio  # noqa: E402
 
 app = FastAPI(title="담보 기후리스크 여신심사 AI — 데모")
@@ -234,6 +236,23 @@ def address_search(keyword: str) -> list[dict[str, Any]]:
     return [{"road_address": s.road_address, "building_name": s.building_name} for s in suggestions]
 
 
+def _stage_durations(stage_starts: list[tuple[str, float]]) -> dict[str, Any]:
+    """[(stage, t)] → {"stages": [{"stage", "seconds"}], "total_seconds", "alert_latency_seconds"}.
+    각 단계의 소요 = 다음 단계 시작 시각 − 이 단계 시작 시각. 마지막 'done'은 0."""
+    stages: list[dict[str, Any]] = []
+    for i, (stage, t) in enumerate(stage_starts):
+        nxt = stage_starts[i + 1][1] if i + 1 < len(stage_starts) else t
+        stages.append({"stage": stage, "seconds": round(nxt - t, 2)})
+    total = round(stage_starts[-1][1] - stage_starts[0][1], 2) if stage_starts else 0.0
+    by_stage = {s: t for s, t in stage_starts}
+    alert_latency = None
+    if "advisory" in by_stage and "portfolio" in by_stage:
+        after = [t for s, t in stage_starts if t > by_stage["portfolio"]]
+        if after:
+            alert_latency = round(after[0] - by_stage["advisory"], 2)
+    return {"stages": stages, "total_seconds": total, "alert_latency_seconds": alert_latency}
+
+
 def _sse(event: str, data: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
 
@@ -250,7 +269,10 @@ def _run_in_background(
     historical_end: datetime | None,
     events: "queue.Queue[str]",
 ) -> None:
+    stage_starts: list[tuple[str, float]] = []
+
     def on_stage(stage: str, message: str) -> None:
+        stage_starts.append((stage, time.perf_counter()))
         events.put(_sse("progress", {"stage": stage, "message": message}))
 
     # 2026-09-07(멘토 피드백 1) — 단계별 산출물을 완료 즉시 `partial` 이벤트로 흘려보낸다.
@@ -278,6 +300,13 @@ def _run_in_background(
         result = run_week4_demo(**kwargs)
     except Exception as exc:  # noqa: BLE001 — 데모 화면에 원인을 그대로 보여주기 위해 넓게 잡는다
         result = {"error": f"평가 중 오류가 발생했어요: {exc}"}
+    if "error" not in result:
+        # 2026-09-08 — 단계별 실측 소요시간(멘토·현직자 피드백: 처리 시간 표시). on_stage가 실제로 불린
+        # 시각의 차이라 타이머 흉내가 아니다. 특보→알림 지연은 특보 조회 시작부터 포트폴리오 재계산 완료까지.
+        result["timings"] = _stage_durations(stage_starts)
+        # 2026-09-08 — 결과 화면 "권고 조치" 섹션용. policy/disclosures.py의 고정 문구 상수를 그대로
+        # 노출한다(프론트가 문구를 새로 만들지 않도록 — 보호형 규율 문구 고정 원칙).
+        result["action_templates"] = [{"key": k, "text": v} for k, v in ACTION_PHRASE_TEMPLATES.items()]
 
     events.put(_sse("result", result))
     events.put("__STREAM_DONE__")

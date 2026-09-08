@@ -122,7 +122,12 @@ def test_on_partial_emits_each_stage_payload_identical_to_final_result(monkeypat
     by_stage = dict(partials)
     assert by_stage["advisory"] == result["advisory"]
     assert by_stage["geocode"] == result["geocoded"]
-    assert by_stage["flood"] == {"flood": result["flood"], "coverage_label": result["coverage_label"]}
+    assert by_stage["flood"] == {
+        "flood": result["flood"],
+        "coverage_label": result["coverage_label"],
+        "flood_depth_class": result["flood_depth_class"],
+        "flood_marks": result["flood_marks"],
+    }
     assert by_stage["building"] == result["building"]
     assert by_stage["scenario"] == result["scenario"]
     assert by_stage["memo"] == result["memo"]
