@@ -2,6 +2,7 @@ import type { PartialResult, SubmittedMeta } from '../types'
 import { Lozenge } from './Section'
 import type { LozengeTone } from './Section'
 import { fmtWon } from '../lib/format'
+import { fmtSavedAt } from '../lib/session'
 
 /* 2026-09-08 — 토스형 3단 레이아웃(12p 3안): 가운데 스크롤 상자 상단에 고정되는 두 줄.
    1줄: 담보 한 줄(주소·담보가액·조회일·처리 시간) + 결론 배지 4개(재심사 알림·침수·취약도·EAL).
@@ -27,12 +28,14 @@ export function ResultTopBar({
   loading,
   active,
   onJump,
+  restoredAt = null,
 }: {
   data: PartialResult
   meta: SubmittedMeta | null
   loading: boolean
   active: string
   onJump: (id: string) => void
+  restoredAt?: string | null
 }) {
   const flood = data.flood?.flood
   const building = data.building
@@ -56,6 +59,10 @@ export function ResultTopBar({
           {data.timings ? ` · 처리 ${data.timings.total_seconds.toFixed(0)}초` : ''}
         </span>
         <span className="ml-auto flex items-center gap-1.5 flex-wrap">
+          {restoredAt && (
+            // 2026-09-09 — 지도 갔다 돌아와 복원된 결과임을 표시(새로 계산한 게 아님).
+            <Lozenge tone="dash">이전 실행 결과 · {fmtSavedAt(restoredAt)} 계산</Lozenge>
+          )}
           {alertPending ? (
             <Lozenge tone="grey">재심사 알림 계산 중</Lozenge>
           ) : sev?.region_triggered ? (

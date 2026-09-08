@@ -36,12 +36,14 @@ export function ResultSection({
   loading,
   meta,
   boxHeight,
+  restoredAt = null,
 }: {
   result: AssessResult | null
   partial: PartialResult
   loading: boolean
   meta: SubmittedMeta | null
   boxHeight?: number
+  restoredAt?: string | null
 }) {
   const hasPartial = Object.keys(partial).length > 0
   // 2026-09-08 — 토스형: 이 컴포넌트가 스크롤 상자를 소유한다. 상자 스크롤 위치로 현재 섹션을 계산해
@@ -124,7 +126,7 @@ export function ResultSection({
       style={boxHeight ? { height: boxHeight } : undefined}
       className={`bg-surface rounded-card ${boxHeight ? 'overflow-y-auto' : ''}`}
     >
-      <ResultTopBar data={view} meta={meta} loading={loading} active={active} onJump={jump} />
+      <ResultTopBar data={view} meta={meta} loading={loading} active={active} onJump={jump} restoredAt={restoredAt} />
       {/* 2026-09-09 — 보고서형 미니멀: 결과 시트 한 장. 안쪽 회색 바탕·카드 껍데기 없이 섹션이 여백으로 이어진다. */}
       <div className="pb-10">
       <ConclusionSection data={view} meta={meta} loading={loading} />

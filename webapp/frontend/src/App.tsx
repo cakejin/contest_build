@@ -6,20 +6,27 @@ import { LineIcon } from './components/Icons'
 import { STAGE_SHORT } from './lib/stages'
 import { ResultSection } from './components/ResultSection'
 import { fetchRegionPresets, startAssessStream } from './api'
+import { loadSession, saveSession } from './lib/session'
 import type { AssessResult, InputMode, PartialResult, PortfolioListItem, ProgressItem, QueryMode, RegionPreset, ResolvedRegion, SubmittedMeta } from './types'
+
+// 2026-09-09 — 같은 탭에서 포트폴리오 지도를 갔다 돌아온 경우 마지막 완료 결과를 복원한다(lib/session.ts).
+// 모듈 로드 시 한 번만 읽는다 — 초기 state 값으로 바로 쓰기 위해.
+const RESTORED = loadSession()
+// 기존 포트폴리오 모드는 선택 위젯 상태까지 복원하지 않으므로 주소 자유입력 모드로 되살린다(주소·담보가액은 그대로,
+// 지역은 AddressField가 주소로 다시 감지). 결과 상단 배지의 담보ID는 저장된 meta에서 그대로 나온다.
 
 function App() {
   // 2026-08-19(계속, DEV_LOG.md 참조) — "신규 담보 조회"(자유입력)와 "기존 포트폴리오
   // 조회"(316건 중 선택)를 명확히 분리한 2탭 구조. 이전엔 주소창이 우리 316건 데이터와
   // 연결되는지 안 되는지 화면에서 구분이 안 돼 혼란이 있었다.
   const [inputMode, setInputMode] = useState<InputMode>('new')
-  const [address, setAddress] = useState('')
+  const [address, setAddress] = useState(RESTORED?.form.address ?? '')
   // 근거 없는 예시 숫자(5억)를 기본값으로 박아두지 않는다(DEV_LOG.md 2026-08-19 참조) —
   // "신규 담보 조회"는 빈 칸으로 시작해 사용자가 직접 입력하도록 강제하고, "기존
   // 포트폴리오 조회"는 선택한 레코드의 실제 담보가액으로 채워진다.
-  const [collateralValue, setCollateralValue] = useState('')
-  const [floorType, setFloorType] = useState('')
-  const [floorNo, setFloorNo] = useState('')
+  const [collateralValue, setCollateralValue] = useState(RESTORED?.form.collateralValue ?? '')
+  const [floorType, setFloorType] = useState(RESTORED?.form.floorType ?? '')
+  const [floorNo, setFloorNo] = useState(RESTORED?.form.floorNo ?? '')
   // HANDOVER 논의(DEV_LOG.md 2026-08-18) — region_code는 더 이상 프리셋에서 오지
   // 않는다. AddressField/PortfolioPicker가 입력·선택된 주소를 감지해 여기로 알려주면,
   // 그 감지 결과가 /api/assess로 보낼 region_code의 유일한 출처다(담보 평가↔포트폴리오
@@ -28,16 +35,18 @@ function App() {
   // "기존 포트폴리오 조회"에서 고른 담보ID — 결과 대시보드 상단에 명시하기 위한 용도로만
   // 쓴다("신규 담보 조회"는 애초에 포트폴리오 담보ID가 없으니 null).
   const [selectedCollateralId, setSelectedCollateralId] = useState<string | null>(null)
-  const [submittedMeta, setSubmittedMeta] = useState<SubmittedMeta | null>(null)
+  const [submittedMeta, setSubmittedMeta] = useState<SubmittedMeta | null>(RESTORED?.meta ?? null)
+  // 복원된 결과일 때만 저장 시각(ISO) — 새 실행을 시작하면 null.
+  const [restoredAt, setRestoredAt] = useState<string | null>(RESTORED?.savedAt ?? null)
   // 2026-08-19(계속, DEV_LOG.md 참조) — "리플레이/라이브/특정날짜" 3택 드롭다운은
   // 사용자 피드백으로 제거했다. 날짜 하나만 있으면 그 날짜의 과거 특보를, 비우면
   // 지금 시점 라이브 특보를 보여준다 — mode 판단은 백엔드가 이 값 유무로 알아서 한다.
-  const [queryDate, setQueryDate] = useState('')
+  const [queryDate, setQueryDate] = useState(RESTORED?.form.queryDate ?? '')
   // 2026-09-08 — 조회 기준을 두 버튼으로 드러냈다(UX 점검: "조회 날짜" 한 칸에 두 모드가 숨어 있었음).
-  const [queryMode, setQueryMode] = useState<QueryMode>('live')
+  const [queryMode, setQueryMode] = useState<QueryMode>(RESTORED?.form.queryMode ?? 'live')
   const [presets, setPresets] = useState<RegionPreset[]>([])
-  const [progressItems, setProgressItems] = useState<ProgressItem[]>([])
-  const [result, setResult] = useState<AssessResult | null>(null)
+  const [progressItems, setProgressItems] = useState<ProgressItem[]>(RESTORED?.progressItems ?? [])
+  const [result, setResult] = useState<AssessResult | null>(RESTORED?.result ?? null)
   // 2026-09-07(멘토 피드백 1) — 단계별 부분 결과. SSE `partial` 이벤트가 오는 대로 채워지고,
   // 최종 `result`가 오면 그쪽이 화면의 원천이 된다(값은 동일 — 부분 결과는 먼저 보여주기용).
   const [partial, setPartial] = useState<PartialResult>({})
@@ -75,6 +84,19 @@ function App() {
     fetchRegionPresets().then(setPresets)
     return () => closeStreamRef.current?.()
   }, [])
+
+  // 완료된 결과만 저장한다(오류 응답·진행 중 부분 결과는 저장하지 않음). 복원된 결과를 다시 저장해도 무해.
+  useEffect(() => {
+    if (!result || result.error || loading) return
+    saveSession({
+      savedAt: restoredAt ?? new Date().toISOString(),
+      result,
+      meta: submittedMeta,
+      progressItems,
+      form: { address, collateralValue, floorType, floorNo, queryMode, queryDate },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, loading])
 
   const handleFillSampleAddress = () => {
     const first = presets[0]
@@ -115,6 +137,7 @@ function App() {
 
     setLoading(true)
     setConnectionError(false)
+    setRestoredAt(null)
     setResult(null)
     setPartial({})
     setProgressItems([])
@@ -234,7 +257,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <ResultSection result={result} partial={partial} loading={loading} meta={submittedMeta} boxHeight={boxHeight} />
+            <ResultSection result={result} partial={partial} loading={loading} meta={submittedMeta} boxHeight={boxHeight} restoredAt={restoredAt} />
           )}
         </section>
 
