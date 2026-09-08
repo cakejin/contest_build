@@ -1,3 +1,6 @@
+/* Pretendard 자체 호스팅(npm pretendard) — 오프라인 시연에서도 동일 글꼴 보장.
+   동적 서브셋 CSS라 화면에 쓰인 글자 묶음만 내려받는다. 등록 font-family는 "Pretendard Variable". */
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 @import "tailwindcss";
 
 /* 색상 토큰은 contest_research/submission/ppt원고_담보기후여신심사AI.md에 이미 확정된
@@ -27,7 +30,7 @@
   --color-ramp-4: #00a88f;
   --color-ramp-5: #007f6c;
 
-  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", -apple-system, sans-serif;
+  --font-sans: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", -apple-system, sans-serif;
 
   --shadow-card: 0 1px 2px rgba(16, 24, 25, 0.04), 0 10px 28px -16px rgba(16, 24, 25, 0.18);
   --shadow-card-lg: 0 2px 4px rgba(16, 24, 25, 0.05), 0 18px 36px -18px rgba(16, 24, 25, 0.22);
