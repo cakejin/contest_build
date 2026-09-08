@@ -4,98 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>담보 포트폴리오 지도</title>
+<link rel="stylesheet" href="/fonts/pretendard/pretendardvariable-dynamic-subset.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* 2026-09-09 — 담보 심사 화면(webapp/frontend/src/index.css)과 같은 팔레트로 통일(사용자 결정).
+     JS는 --c-*·--st-* 만 getComputedStyle로 읽으므로 이름은 그대로 두고 값만 바꿨다.
+     다크 테마 블록은 담보 심사 화면에 없어서 함께 제거(라이트 고정). */
   :root{
     color-scheme: light;
-    --page:        #eef1f3;
-    --surface:     #ffffff;
-    --surface-2:   #f4f6f8;
-    --surface-3:   #e9edf1;
-    --ink-1:       #10151b;
-    --ink-2:       #4a5568;
-    --ink-3:       #8a929c;
-    --hairline:    #dde2e7;
-    --hairline-strong: #c7cfd6;
-    --focus:       #2a78d6;
+    --page:        #f4f5f5;   /* 바탕 */
+    --surface:     #ffffff;   /* 시트 */
+    --surface-2:   #f2f4f4;   /* 표 행 구분·세그먼트 바탕 */
+    --surface-3:   #e6e9e9;
+    --ink-1:       #192325;
+    --ink-2:       #5b6466;
+    --ink-3:       #8a9296;
+    --hairline:    #f2f4f4;
+    --hairline-strong: #d0d4d5;
+    --focus:       #007f6c;   /* 브랜드 다크민트 */
+    --accent:      #00a88f;
+    --accent-soft: #cceded;
 
-    --c-daegu:   #2a78d6;
-    --c-geoje:   #eb6834;
-    --c-pohang:  #1baf7a;
-    --c-other:   #8a929c;
+    /* 지역 — 브랜드 민트를 기준색으로, 나머지는 침수 tier 팔레트(앰버·그린)와 같은 계열 */
+    --c-daegu:   #007f6c;
+    --c-geoje:   #d88a2c;
+    --c-pohang:  #4a6fa5;
+    --c-other:   #8a9296;
 
-    --st-good:     #0ca30c;
-    --st-warning:  #d98c00;
-    --st-serious:  #ec835a;
-    --st-critical: #d03b3b;
+    /* 상태 — 담보 심사 화면의 tier 색(원거리 그린·근접 앰버·내부 레드) + 심각 */
+    --st-good:     #4a8f6a;
+    --st-warning:  #d88a2c;
+    --st-serious:  #c8443c;
+    --st-critical: #8a1f12;
 
-    --water:       #b7d3e8;
-    --land:        #eeece1;
-    --land-stroke: #d1cdb9;
+    /* 지도 — 채색 없는 회색 지도(육지 흰색, 바다는 바탕보다 한 단계 짙게) */
+    --water:       #e9ecec;
+    --land:        #ffffff;
+    --land-stroke: #d0d4d5;
 
-    --shadow: 0 1px 2px rgba(16,21,27,0.04), 0 8px 24px -12px rgba(16,21,27,0.18);
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      color-scheme: dark;
-      --page:      #0b0d0f;
-      --surface:   #14171a;
-      --surface-2: #191d21;
-      --surface-3: #20252a;
-      --ink-1:     #f3f5f7;
-      --ink-2:     #a8b0ba;
-      --ink-3:     #6d7680;
-      --hairline:  #262b31;
-      --hairline-strong: #333a41;
-      --focus:     #3987e5;
-
-      --c-daegu:   #3987e5;
-      --c-geoje:   #d95926;
-      --c-pohang:  #199e70;
-      --c-other:   #9aa2ac;
-
-      --st-good:     #24b524;
-      --st-warning:  #e2a52a;
-      --st-serious:  #ef9976;
-      --st-critical: #e66767;
-
-      --water:       #0c1622;
-      --land:        #21251d;
-      --land-stroke: #3b4032;
-
-      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
-    }
-  }
-  :root[data-theme="dark"]{
-    color-scheme: dark;
-    --page:      #0b0d0f;
-    --surface:   #14171a;
-    --surface-2: #191d21;
-    --surface-3: #20252a;
-    --ink-1:     #f3f5f7;
-    --ink-2:     #a8b0ba;
-    --ink-3:     #6d7680;
-    --hairline:  #262b31;
-    --hairline-strong: #333a41;
-    --focus:     #3987e5;
-
-    --c-daegu:   #3987e5;
-    --c-geoje:   #d95926;
-    --c-pohang:  #199e70;
-    --c-other:   #9aa2ac;
-
-    --st-good:     #24b524;
-    --st-warning:  #e2a52a;
-    --st-serious:  #ef9976;
-    --st-critical: #e66767;
-
-    --water:       #0c1622;
-    --land:        #21251d;
-    --land-stroke: #3b4032;
-
-    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 28px -12px rgba(0,0,0,0.55);
+    --shadow: 0 2px 4px rgba(16,24,25,0.05), 0 18px 36px -18px rgba(16,24,25,0.22); /* 툴팁·떠 있는 요소만 */
   }
 
   *{box-sizing:border-box;}
@@ -104,88 +53,100 @@
     margin:0;
     background:var(--page);
     color:var(--ink-1);
-    font-family:"IBM Plex Sans KR", "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family:"Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", -apple-system, sans-serif;
     -webkit-font-smoothing:antialiased;
+    line-height:1.6;
   }
-  .num{ font-family:"IBM Plex Mono","IBM Plex Sans KR",monospace; font-variant-numeric: tabular-nums; }
+  .num{ font-variant-numeric: tabular-nums; }
+
+  /* ---------- 공통 상단 줄(담보 심사 화면 components/Header.tsx와 같은 모양) ---------- */
+  .site-top{ background:var(--surface); border-bottom:1px solid var(--hairline); }
+  .site-top .in{
+    max-width:1600px; margin:0 auto; padding:0 32px; height:52px;
+    display:flex; align-items:center; gap:24px;
+  }
+  .site-brand{ display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .site-brand .co{ font-size:17px; font-weight:800; letter-spacing:-0.01em; color:var(--focus); }
+  .site-brand .bar{ width:1px; height:16px; background:var(--hairline-strong); }
+  .site-brand .prod{ font-size:14.5px; font-weight:700; color:var(--ink-1); }
+  .site-nav{ display:flex; align-items:center; gap:4px; height:100%; }
+  .site-nav a{
+    height:52px; display:flex; align-items:center; padding:0 12px; font-size:13.5px;
+    text-decoration:none; border-bottom:2px solid transparent; color:var(--ink-2); font-weight:500;
+  }
+  .site-nav a:hover{ color:var(--ink-1); }
+  .site-nav a[aria-current="page"]{ color:var(--ink-1); font-weight:700; border-bottom-color:var(--focus); }
+  .site-demo{
+    margin-left:auto; font-size:11.5px; font-weight:600; color:var(--ink-2);
+    background:var(--surface-2); border-radius:999px; padding:4px 10px; white-space:nowrap;
+  }
 
   .app{
     display:flex;
     flex-direction:column;
-    height:100vh;
+    height:calc(100vh - 53px);
     min-height:640px;
-    padding:14px;
-    gap:12px;
+    max-width:1600px; margin:0 auto;
+    padding:24px 32px 16px;
+    gap:16px;
   }
 
-  /* ---------- header ---------- */
+  /* ---------- 페이지 제목 줄(카드 없음) ---------- */
   header.top{
     display:flex;
-    align-items:center;
+    align-items:flex-end;
     justify-content:space-between;
-    gap:16px;
+    gap:24px;
     flex-wrap:wrap;
-    background:var(--surface);
-    border:1px solid var(--hairline);
-    border-radius:14px;
-    padding:14px 18px;
-    box-shadow:var(--shadow);
+    padding:0 0 4px;
   }
   .top-title{ display:flex; flex-direction:column; gap:2px; min-width:220px; }
   .top-title h1{
-    margin:0; font-size:18px; font-weight:700; letter-spacing:-0.01em;
+    margin:0; font-size:18px; font-weight:800; letter-spacing:-0.01em;
   }
   .top-title p{
-    margin:0; font-size:12.5px; color:var(--ink-3);
+    margin:0; font-size:12.5px; color:var(--ink-2);
   }
-  .stat-row{ display:flex; gap:8px; flex-wrap:wrap; }
-  .stat-chip{
-    display:flex; flex-direction:column; align-items:flex-start;
-    background:var(--surface-2); border:1px solid var(--hairline);
-    border-radius:10px; padding:7px 12px; min-width:84px;
-  }
-  .stat-chip .v{ font-size:15px; font-weight:600; }
-  .stat-chip .l{ font-size:10.5px; color:var(--ink-3); margin-top:1px; }
+  .stat-row{ display:flex; gap:28px; flex-wrap:wrap; }
+  .stat-chip{ display:flex; flex-direction:column; align-items:flex-start; }
+  .stat-chip .v{ font-size:18px; font-weight:800; letter-spacing:-0.01em; }
+  .stat-chip .l{ font-size:11px; color:var(--ink-2); margin-top:0; }
 
   /* ---------- body layout ---------- */
   .body{
     flex:1; min-height:0;
     display:grid;
     grid-template-columns: 300px 1fr;
-    gap:12px;
+    gap:32px;
   }
   @media (max-width: 880px){
     .body{ grid-template-columns: 1fr; grid-template-rows:auto 1fr; }
   }
 
   aside.panel{
-    background:var(--surface);
-    border:1px solid var(--hairline);
-    border-radius:14px;
-    box-shadow:var(--shadow);
-    padding:14px;
+    padding:2px 4px 8px;
     overflow-y:auto;
     display:flex;
     flex-direction:column;
-    gap:16px;
+    gap:20px;
   }
   .sec{ display:flex; flex-direction:column; gap:8px; }
   .sec-h{
-    font-size:11px; font-weight:600; color:var(--ink-3);
-    text-transform:uppercase; letter-spacing:0.06em;
+    font-size:12px; font-weight:700; color:var(--ink-2);
   }
 
   input[type="search"]{
-    width:100%; padding:8px 10px; border-radius:9px;
-    border:1px solid var(--hairline-strong); background:var(--surface-2);
+    width:100%; padding:8px 12px; border-radius:10px;
+    border:1px solid var(--hairline-strong); background:var(--surface);
     color:var(--ink-1); font-size:13px; font-family:inherit;
   }
-  input[type="search"]:focus, select:focus, button:focus-visible{
-    outline:2px solid var(--focus); outline-offset:1px;
+  input[type="search"]:focus, select:focus{
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,168,143,0.16);
   }
+  button:focus-visible{ outline:2px solid var(--focus); outline-offset:1px; }
   select{
-    width:100%; padding:7px 9px; border-radius:9px;
-    border:1px solid var(--hairline-strong); background:var(--surface-2);
+    width:100%; padding:7px 9px; border-radius:10px;
+    border:1px solid var(--hairline-strong); background:var(--surface);
     color:var(--ink-1); font-size:13px; font-family:inherit;
   }
 
@@ -200,19 +161,22 @@
   .swatch{ width:9px; height:9px; border-radius:3px; flex:0 0 auto; }
   .check-row .cnt{ margin-left:auto; color:var(--ink-3); font-size:11.5px; }
 
-  .radio-group{ display:flex; gap:6px; flex-wrap:wrap; }
+  /* 담보 심사 폼의 세그먼트 컨트롤과 같은 모양(붙은 버튼, 선택=다크민트) */
+  .radio-group{ display:flex; border:1px solid var(--hairline-strong); border-radius:10px; overflow:hidden; background:var(--surface); }
   .radio-group button{
-    flex:1; min-width:60px;
-    padding:6px 8px; border-radius:8px; border:1px solid var(--hairline-strong);
-    background:var(--surface-2); color:var(--ink-2); font-size:12px; font-family:inherit;
-    cursor:pointer;
+    flex:1; min-width:0;
+    padding:7px 6px; border:none; border-right:1px solid var(--hairline-strong);
+    background:var(--surface); color:var(--ink-2); font-size:12.5px; font-weight:600; font-family:inherit;
+    cursor:pointer; white-space:nowrap;
   }
+  .radio-group button:last-child{ border-right:none; }
+  .radio-group button:hover{ background:var(--surface-2); }
   .radio-group button.on{
-    background:var(--focus); border-color:var(--focus); color:#fff; font-weight:600;
+    background:var(--focus); color:#fff;
   }
 
   .link-btn{
-    background:none; border:none; color:var(--focus); font-size:12px;
+    background:none; border:none; color:var(--focus); font-size:12px; font-weight:600;
     font-family:inherit; cursor:pointer; padding:2px 0; text-align:left;
   }
   .link-btn:hover{ text-decoration:underline; }
@@ -222,17 +186,16 @@
   .legend-dot{ width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
 
   .detail-card{
-    border:1px solid var(--hairline); border-radius:11px; padding:12px;
-    background:var(--surface-2); display:flex; flex-direction:column; gap:6px;
+    padding:0; display:flex; flex-direction:column; gap:6px;
   }
   .detail-card .empty{ color:var(--ink-3); font-size:12.5px; line-height:1.6; }
-  .detail-id{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3); }
+  .detail-id{ font-variant-numeric:tabular-nums; font-size:11.5px; color:var(--ink-3); }
   .detail-addr{ font-size:13px; font-weight:600; line-height:1.4; }
   .detail-grid{
     display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin-top:4px;
   }
   .detail-kv{ display:flex; flex-direction:column; gap:1px; }
-  .detail-kv .k{ font-size:10px; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.04em; }
+  .detail-kv .k{ font-size:11px; color:var(--ink-2); }
   .detail-kv .v{ font-size:12.5px; font-weight:600; }
   .pill{
     display:inline-flex; align-items:center; gap:4px;
@@ -244,11 +207,11 @@
   .multi-list{ display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto; }
   .multi-row{
     display:flex; justify-content:space-between; gap:8px;
-    padding:6px 8px; border-radius:8px; background:var(--surface); border:1px solid var(--hairline);
+    padding:7px 2px; border-bottom:1px solid var(--hairline);
     cursor:pointer; font-size:12px;
   }
-  .multi-row:hover{ border-color:var(--focus); }
-  .multi-row .mid{ font-family:"IBM Plex Mono",monospace; color:var(--ink-3); }
+  .multi-row:hover{ color:var(--focus); }
+  .multi-row .mid{ font-variant-numeric:tabular-nums; color:var(--ink-3); }
 
   .foot-note{ font-size:10.5px; color:var(--ink-3); line-height:1.6; }
 
@@ -258,30 +221,29 @@
   }
   .toolbar{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    background:var(--surface); border:1px solid var(--hairline); border-radius:12px;
-    padding:8px 10px; box-shadow:var(--shadow);
+    padding:0;
   }
-  .tabs{ display:flex; gap:4px; background:var(--surface-2); border-radius:9px; padding:3px; }
+  .tabs{ display:flex; gap:4px; background:var(--surface-2); border-radius:10px; padding:3px; }
   .tabs button{
-    border:none; background:none; padding:6px 12px; border-radius:7px;
-    font-size:12.5px; font-weight:500; color:var(--ink-2); cursor:pointer; font-family:inherit;
+    border:none; background:none; padding:6px 14px; border-radius:7px;
+    font-size:12.5px; font-weight:600; color:var(--ink-2); cursor:pointer; font-family:inherit;
   }
-  .tabs button.on{ background:var(--surface); color:var(--ink-1); font-weight:600; box-shadow:var(--shadow); }
+  .tabs button.on{ background:var(--surface); color:var(--focus); box-shadow:0 1px 4px rgba(0,0,0,0.14); }
   .toolbar .spacer{ flex:1; }
   .toolbar .result-count{ font-size:12px; color:var(--ink-3); }
   .btn{
     display:inline-flex; align-items:center; gap:5px;
-    border:1px solid var(--hairline-strong); background:var(--surface-2); color:var(--ink-1);
-    padding:6px 11px; border-radius:8px; font-size:12.5px; font-family:inherit; cursor:pointer;
+    border:1px solid var(--hairline-strong); background:var(--surface); color:var(--ink-1);
+    padding:6px 12px; border-radius:10px; font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer;
   }
-  .btn:hover{ border-color:var(--focus); }
+  .btn:hover{ border-color:var(--accent); color:var(--focus); }
   .zoom-grp{ display:flex; gap:4px; }
   .zoom-grp .btn{ padding:6px 10px; }
 
   .map-shell{
     flex:1; min-height:0; position:relative;
-    background:var(--water); border:1px solid var(--hairline); border-radius:14px;
-    box-shadow:var(--shadow); overflow:hidden;
+    background:var(--water); border-radius:16px;
+    overflow:hidden;
   }
   #mapSvg{ width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
   #mapSvg.dragging{ cursor:grabbing; }
@@ -300,7 +262,7 @@
   .marker.dim circle.core{ opacity:0.16; }
   .marker.hi circle.core{ stroke:var(--ink-1); stroke-width:2.4px; }
   .marker text.badge{
-    font-family:"IBM Plex Mono",monospace; font-weight:600;
+    font-weight:600;
     fill:#fff; text-anchor:middle; pointer-events:none; dominant-baseline:central;
   }
   .marker.dim text.badge{ display:none; }
@@ -316,39 +278,39 @@
   .tooltip .row{ display:flex; justify-content:space-between; gap:10px; opacity:0.85; }
 
   .map-badge-outlier{
-    position:absolute; top:10px; right:10px; z-index:4;
-    background:var(--surface); border:1px solid var(--hairline-strong); border-radius:9px;
+    position:absolute; top:12px; right:12px; z-index:4;
+    background:var(--surface); border-radius:10px;
     padding:6px 10px; font-size:11.5px; color:var(--ink-2); box-shadow:var(--shadow);
     display:flex; align-items:center; gap:8px;
   }
 
   .scalebar{
-    position:absolute; left:12px; bottom:10px; z-index:4;
+    position:absolute; left:14px; bottom:12px; z-index:4;
     display:flex; align-items:center; gap:6px;
-    font-size:10.5px; color:var(--ink-3); font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums;
   }
   .scalebar .bar{ height:3px; background:var(--ink-3); border-radius:2px; }
 
   /* ---------- table ---------- */
   .table-shell{
     flex:1; min-height:0; display:none;
-    background:var(--surface); border:1px solid var(--hairline); border-radius:14px;
-    box-shadow:var(--shadow); overflow:auto;
+    background:var(--surface); border-radius:16px;
+    overflow:auto;
   }
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
   thead th{
-    position:sticky; top:0; background:var(--surface-2); text-align:left;
-    padding:9px 12px; font-size:11px; color:var(--ink-3); font-weight:600;
-    text-transform:uppercase; letter-spacing:0.04em; cursor:pointer; white-space:nowrap;
+    position:sticky; top:0; background:var(--surface); text-align:left;
+    padding:12px 16px; font-size:11.5px; color:var(--ink-2); font-weight:600;
+    cursor:pointer; white-space:nowrap;
     border-bottom:1px solid var(--hairline);
   }
   thead th:hover{ color:var(--ink-1); }
   thead th .arrow{ margin-left:3px; opacity:0.6; }
-  tbody td{ padding:8px 12px; border-bottom:1px solid var(--hairline); white-space:nowrap; }
+  tbody td{ padding:10px 16px; border-bottom:1px solid var(--hairline); white-space:nowrap; }
   tbody tr{ cursor:pointer; }
   tbody tr:hover{ background:var(--surface-2); }
   tbody tr.selected{ background:color-mix(in srgb, var(--focus) 10%, transparent); }
-  td.mono{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; }
+  td.mono{ font-variant-numeric:tabular-nums; font-size:12px; color:var(--ink-2); }
   td.addr{ white-space:normal; min-width:220px; }
   .dot-inline{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
 
@@ -358,14 +320,29 @@
 </style>
 </head>
 <body>
-<a href="/" style="position:fixed;top:10px;left:14px;z-index:10000;font:600 12.5px 'IBM Plex Sans KR',sans-serif;color:#2a78d6;background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #dde2e7;text-decoration:none;box-shadow:0 1px 2px rgba(16,21,27,0.08);">← 담보 평가로 돌아가기</a>
-<div id="mapLoading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font:15px 'IBM Plex Sans KR',sans-serif;color:#4a5568;background:#eef1f3;z-index:9999;">포트폴리오 데이터를 불러오는 중...</div>
+<div id="mapLoading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font:15px inherit;color:#5b6466;background:#f4f5f5;z-index:9999;">포트폴리오 데이터를 불러오는 중...</div>
+
+<!-- 2026-09-09 — 담보 심사 화면(components/Header.tsx)과 같은 상단 줄. 두 페이지가 별도 정적 HTML이라 마크업을 복제한다. -->
+<div class="site-top">
+  <div class="in">
+    <a href="/" class="site-brand">
+      <span class="co">iM뱅크</span>
+      <span class="bar" aria-hidden="true"></span>
+      <span class="prod">담보 기후리스크 심사</span>
+    </a>
+    <nav class="site-nav" aria-label="화면">
+      <a href="/">담보 심사</a>
+      <a href="/portfolio-map" aria-current="page">포트폴리오 지도</a>
+    </nav>
+    <span class="site-demo">공공데이터 실연동 데모</span>
+  </div>
+</div>
 
 <div class="app">
   <header class="top">
     <div class="top-title">
-      <h1>담보 포트폴리오 지도</h1>
-      <p>가상 데이터 · 시도 행정구역 윤곽(간략화) 위에 담보 주소 좌표를 표시</p>
+      <h1>포트폴리오 지도</h1>
+      <p>합성 포트폴리오 · 시도 행정구역 윤곽(간략화) 위에 담보 주소 좌표를 표시</p>
     </div>
     <div class="stat-row" id="statRow"></div>
   </header>
