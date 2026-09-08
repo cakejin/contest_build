@@ -61,7 +61,8 @@ function App() {
         return
       }
       const bottom = headerRef.current?.getBoundingClientRect().bottom ?? 0
-      setBoxHeight(Math.max(480, window.innerHeight - bottom - 56))
+      // 2026-09-09 — 위 여백 24 + 아래 여백 16 + 하단 출처 줄 32 + 여유 8
+      setBoxHeight(Math.max(480, window.innerHeight - bottom - 80))
     }
     measure()
     window.addEventListener('resize', measure)
@@ -196,7 +197,7 @@ function App() {
       <div ref={headerRef}>
         <Header />
       </div>
-      <main className="max-w-[1600px] mx-auto pt-5 px-8 pb-8 grid grid-cols-1 min-[900px]:grid-cols-[300px_minmax(0,1fr)_56px] min-[1200px]:grid-cols-[320px_minmax(0,1fr)_240px] gap-8 items-start">
+      <main className="max-w-[1600px] mx-auto pt-6 px-8 pb-4 grid grid-cols-1 min-[900px]:grid-cols-[300px_minmax(0,1fr)_56px] min-[1200px]:grid-cols-[320px_minmax(0,1fr)_240px] gap-8 items-start">
         <section className="min-[900px]:sticky min-[900px]:top-5">
           <AssessForm
             inputMode={inputMode}
@@ -270,6 +271,11 @@ function App() {
           )}
         </section>
       </main>
+      {/* 2026-09-09 — 토스증권처럼 출처·면책은 상단이 아니라 하단 한 줄에. */}
+      <footer className="max-w-[1600px] mx-auto px-8 h-8 flex items-center gap-4 text-[11px] text-muted whitespace-nowrap overflow-hidden">
+        <span>데이터 출처: 기상청 특보 API · V-World · 건축HUB · 국토부 홍수위험지도</span>
+        <span className="ml-auto">AI 기반 참고자료 · 여신 결정 아님</span>
+      </footer>
     </>
   )
 }

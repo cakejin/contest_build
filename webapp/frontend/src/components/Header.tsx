@@ -1,23 +1,42 @@
-/* 2026-09-09 — 보고서형 미니멀(사용자 결정): 그라데이션 배너·상단 회색 줄·그림자를 걷어내고
-   바탕 위에 제목 한 줄만 둔다. 데이터 출처·지도 링크는 같은 줄 오른쪽으로. 브랜드 민트는 아이콘·링크에만. */
+/* 2026-09-09 — 토스증권식 얇은 상단 줄(사용자 결정): 왼쪽 회사명(iM뱅크 글자 워드마크 — 로고 파일은
+   저작권·공식 서비스 오인 문제로 쓰지 않음) │ 제품명, 가운데 화면 메뉴 2개, 오른쪽 "데모" 라벨.
+   제품 설명 문장·데이터 출처 줄은 헤더에서 뺐다(빈 상태 안내·요약 출처 보기·하단 줄에 이미 있음). */
+
+const NAV: { href: string; label: string }[] = [
+  { href: '/', label: '담보 심사' },
+  { href: '/portfolio-map', label: '포트폴리오 지도' },
+]
+
 export function Header() {
+  const path = typeof window === 'undefined' ? '/' : window.location.pathname
   return (
-    <header className="max-w-[1600px] mx-auto px-8 pt-7 pb-2 flex items-center gap-3.5">
-      <span className="flex-none w-9 h-9 rounded-full bg-accent-soft text-title flex items-center justify-center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z" />
-          <path d="M9 12l2 2 4-4" />
-        </svg>
-      </span>
-      <div>
-        <h1 className="m-0 text-[19px] font-extrabold tracking-tight text-ink">담보 기후리스크 여신심사 AI</h1>
-        <p className="mt-0.5 mb-0 text-[12.5px] text-muted">물건 단위 조기경보와 심사메모 자동화 — 공공데이터 실연동 데모</p>
-      </div>
-      <div className="ml-auto text-[11.5px] text-muted flex items-center gap-4 max-[900px]:hidden">
-        <span>데이터 출처: 기상청 특보 API · V-World · 건축HUB · 국토부 홍수위험지도</span>
-        <a href="/portfolio-map" className="text-title font-semibold no-underline hover:underline">
-          포트폴리오 지도 →
+    <header className="bg-surface border-b border-surface-alt">
+      <div className="max-w-[1600px] mx-auto px-8 h-[52px] flex items-center gap-6">
+        <a href="/" className="flex items-center gap-2.5 no-underline">
+          <span className="text-[17px] font-extrabold tracking-tight text-title">iM뱅크</span>
+          <span className="w-px h-4 bg-border" aria-hidden="true" />
+          <span className="text-[14.5px] font-bold text-ink">담보 기후리스크 심사</span>
         </a>
+        <nav className="flex items-center gap-1 h-full" aria-label="화면">
+          {NAV.map((n) => {
+            const on = n.href === '/' ? path === '/' || path === '' : path.startsWith(n.href)
+            return (
+              <a
+                key={n.href}
+                href={n.href}
+                aria-current={on ? 'page' : undefined}
+                className={`h-[52px] flex items-center px-3 text-[13.5px] no-underline border-b-2 ${
+                  on ? 'text-ink font-bold border-title' : 'text-muted font-medium border-transparent hover:text-ink'
+                }`}
+              >
+                {n.label}
+              </a>
+            )
+          })}
+        </nav>
+        <span className="ml-auto text-[11.5px] font-semibold text-muted bg-surface-alt rounded-full px-2.5 py-1 whitespace-nowrap">
+          공공데이터 실연동 데모
+        </span>
       </div>
     </header>
   )
