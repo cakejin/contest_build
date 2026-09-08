@@ -89,16 +89,16 @@ function EalChangeDetails({
       </p>
       {portfolioBatch.alerts.length > 0 && !!insuranceUnconfirmedCount && <KvRow label="보험 커버리지 미확인" value={`${insuranceUnconfirmedCount}건`} />}
       {portfolioBatch.alerts.length === 0 ? (
-        <div className="text-xs text-muted bg-surface-alt rounded-lg py-3 px-3.5">매칭된 담보 전부 스냅샷 대비 EAL 변화율이 임계치 미만이에요.</div>
+        <p className="text-[12.5px] text-muted m-0">매칭된 담보 전부 스냅샷 대비 EAL 변화율이 임계치 미만이에요.</p>
       ) : (
         <table className="w-full border-collapse text-xs mt-1">
           <thead>
             <tr>
-              <th className="text-left py-2 px-1.5 border-b border-surface-alt text-muted bg-surface-alt">담보ID</th>
-              <th className="text-right py-2 px-1.5 border-b border-surface-alt text-muted bg-surface-alt">EAL(스냅샷)</th>
-              <th className="text-right py-2 px-1.5 border-b border-surface-alt text-muted bg-surface-alt">EAL(재계산)</th>
-              <th className="text-right py-2 px-1.5 border-b border-surface-alt text-muted bg-surface-alt">변화율</th>
-              <th className="text-left py-2 px-1.5 border-b border-surface-alt text-muted bg-surface-alt">추천 액션</th>
+              <th className="text-left py-2 px-1.5 border-b border-surface-alt text-muted font-semibold">담보ID</th>
+              <th className="text-right py-2 px-1.5 border-b border-surface-alt text-muted font-semibold">EAL(스냅샷)</th>
+              <th className="text-right py-2 px-1.5 border-b border-surface-alt text-muted font-semibold">EAL(재계산)</th>
+              <th className="text-right py-2 px-1.5 border-b border-surface-alt text-muted font-semibold">변화율</th>
+              <th className="text-left py-2 px-1.5 border-b border-surface-alt text-muted font-semibold">추천 액션</th>
             </tr>
           </thead>
           <tbody>

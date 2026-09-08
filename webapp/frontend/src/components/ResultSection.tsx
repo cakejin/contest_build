@@ -83,19 +83,19 @@ export function ResultSection({
         {/* 2026-09-08 — 첫 방문 빈 상태를 3단계 안내로(UX 점검: 빈 상태가 곧 안내). */}
         <p className="text-sm font-bold text-ink mt-0 mb-1">담보 주소 하나로 침수 위험·건물취약도·예상손실과 근거 인용 심사메모를 만듭니다</p>
         <p className="text-muted text-xs mt-0 mb-3.5">왼쪽 폼을 위에서부터 채우면 됩니다. 처음이면 "예시 주소 넣기"로 힌남노 사례를 바로 볼 수 있어요.</p>
-        <div className="grid grid-cols-3 max-[600px]:grid-cols-1 gap-2.5">
+        <div className="grid grid-cols-3 max-[600px]:grid-cols-1 gap-6 mt-6">
           {[
             ['1 주소 입력', '대구·포항·거제 도로명주소. 지역은 자동 감지'],
             ['2 조회 기준 선택', '지금 시점 특보, 또는 과거 사건 재현'],
             ['3 평가 실행', '10초 안에 판정, 약 1분 뒤 심사메모'],
           ].map(([t, d]) => (
-            <div key={t} className="bg-surface-alt rounded-[10px] py-3 px-3.5">
-              <div className="text-[11px] font-bold text-title">{t}</div>
-              <div className="text-[12.5px] text-ink mt-1">{d}</div>
+            <div key={t} className="border-t border-surface-alt pt-3">
+              <div className="text-[11.5px] font-bold text-title">{t}</div>
+              <div className="text-[13px] text-ink mt-1">{d}</div>
             </div>
           ))}
         </div>
-        <p className="text-[11.5px] text-muted/80 mt-3 mb-0">이 산출물은 AI 기반 참고자료이며 여신 결정이 아닙니다.</p>
+        <p className="text-[11.5px] text-muted/80 mt-6 mb-0">이 산출물은 AI 기반 참고자료이며 여신 결정이 아닙니다.</p>
       </Card>
       </div>
     )
@@ -106,7 +106,7 @@ export function ResultSection({
       <div style={boxHeight ? { height: boxHeight } : undefined} className="[&>div]:h-full [&>div]:mb-0 [&>div]:box-border">
       <Card icon="result" title="결과">
         <p className="text-[12.5px] text-muted mt-0">{meta?.address}</p>
-        <div className="bg-[#fdecea] text-[#8a1f12] rounded-[10px] py-3.5 px-4 text-[13px]">{result.error}</div>
+        <div className="bg-[#fdecea] text-[#8a1f12] rounded-lg py-3.5 px-4 text-[13px]">{result.error}</div>
       </Card>
       </div>
     )
@@ -122,10 +122,11 @@ export function ResultSection({
     <div
       ref={boxRef}
       style={boxHeight ? { height: boxHeight } : undefined}
-      className={`bg-surface border border-border/50 rounded-card shadow-card ${boxHeight ? 'overflow-y-auto' : ''}`}
+      className={`bg-surface rounded-card ${boxHeight ? 'overflow-y-auto' : ''}`}
     >
       <ResultTopBar data={view} meta={meta} loading={loading} active={active} onJump={jump} />
-      <div className="px-4 pt-4 pb-6 bg-[#f6f8f8]">
+      {/* 2026-09-09 — 보고서형 미니멀: 결과 시트 한 장. 안쪽 회색 바탕·카드 껍데기 없이 섹션이 여백으로 이어진다. */}
+      <div className="pb-10">
       <ConclusionSection data={view} meta={meta} loading={loading} />
 
       <Panel>
@@ -151,13 +152,13 @@ export function ResultSection({
       {view.scenario ? (
         <PanelSection id="sec-eal" title="예상손실" note={`몬테카를로 ${view.scenario.eal.n_iterations.toLocaleString()}회 · 시드 고정`}>
           {view.scenario.eal.status === 'OK' && view.scenario.eal.EAL_mean != null ? (
-            <p className="text-[13.5px] leading-relaxed text-ink mt-0 mb-2">
+            <p className="text-[14.5px] leading-[1.75] text-ink mt-0 mb-3">
               연평균 예상손실은 <b>{fmtWon(view.scenario.eal.EAL_mean)}</b>이에요
               {meta?.collateralValue ? `(담보가액의 ${((view.scenario.eal.EAL_mean / meta.collateralValue) * 100).toFixed(2)}%)` : ''}.
               {view.scenario.eal.EAL_p95 === 0 ? ' 대부분의 해에는 손실이 없고, 드문 침수 해의 큰 손실이 평균을 만들어요.' : ''}
             </p>
           ) : (
-            <p className="text-[13.5px] leading-relaxed text-ink mt-0 mb-2">
+            <p className="text-[14.5px] leading-[1.75] text-ink mt-0 mb-3">
               예상손실을 <b>산출하지 않았어요</b>({view.scenario.eal.reason ?? '입력 데이터 불충분'}). 데이터 없음은 위험 낮음이 아니에요.
             </p>
           )}
@@ -165,8 +166,8 @@ export function ResultSection({
           <KvRow label="p95 / p99" value={`${fmtWon(view.scenario.eal.EAL_p95)} / ${fmtWon(view.scenario.eal.EAL_p99)}`} />
           <EalChart bins={view.scenario.eal.distribution_histogram_bins} />
           {view.scenario.adaptation && (
-            <div className="mt-3 bg-surface-alt rounded-[10px] py-3 px-3.5">
-              <div className="text-[12px] font-bold text-ink mb-1.5">차수판 설치 시 예상손실 <span className="font-normal text-muted">— 같은 시드 재실행 · 참고치</span></div>
+            <div className="mt-6">
+              <div className="text-[13px] font-bold text-ink mb-2">차수판 설치 시 예상손실 <span className="font-normal text-muted">— 같은 시드 재실행 · 참고치</span></div>
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr>
@@ -208,7 +209,7 @@ export function ResultSection({
       {advisory ? (
         <PanelSection id="sec-advisory" title="특보 · 재심사 알림" note="기상청 특보 · 재난문자 · 특보 지역 포트폴리오 재계산">
           <AdvisoryCard advisory={advisory} bare />
-          <div className="mt-4 pt-4 border-t border-surface-alt">
+          <div className="mt-6">
             {portfolioPending ? (
               <p className="text-muted text-xs flex items-center gap-2 m-0">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse-dot flex-none" />
@@ -235,11 +236,10 @@ export function ResultSection({
       ) : (
         <PendingPanelSection id="sec-memo" title="근거 원문" text="근거를 인용한 심사메모를 작성하고 있어요 (LLM 호출)" />
       )}
-      <div className="h-3" />
       </Panel>
 
       {view.timings && (
-        <div className="bg-surface border border-border/50 rounded-card shadow-card px-[18px] py-1 mb-3">
+        <div className="px-8 pt-4">
           <Details summary={`처리 소요 ${view.timings.total_seconds.toFixed(1)}초 · 단계별 실측 시간`}>
             <div className="flex flex-wrap gap-1.5 text-[11px]">
               {view.timings.stages
@@ -258,7 +258,7 @@ export function ResultSection({
         </div>
       )}
       {view.memo && (
-        <div className="mt-[22px] bg-warn-bg text-warn-ink rounded-xl py-3.5 px-4 text-xs shadow-card">{view.memo.disclosure}</div>
+        <p className="mx-8 mt-8 mb-0 pt-5 border-t border-surface-alt text-[12px] leading-relaxed text-muted">{view.memo.disclosure}</p>
       )}
       </div>
     </div>

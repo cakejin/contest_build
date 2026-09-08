@@ -1,5 +1,4 @@
 import type { ProgressItem, Timings } from '../types'
-import { Card } from './Card'
 import { STAGE_LABEL } from '../lib/stages'
 
 /* 2026-09-08 — 토스형 3단 레이아웃(디자인 캔버스 12p 3안)의 오른쪽 열. 폭이 260px라 단계는 짧은
@@ -11,12 +10,14 @@ export function ProgressList({ items, timings }: { items: ProgressItem[]; timing
   const visible = items.filter((it) => it.stage !== 'done')
   const finished = items.some((it) => it.stage === 'done')
   return (
-    <Card icon="chart" title="진행상황">
+    <div className="px-1 pt-1">
+      {/* 2026-09-09 — 보고서형 미니멀: 카드 없이 작은 제목 + 목록. */}
+      <h2 className="m-0 mb-3 text-[12px] font-bold text-muted tracking-wide">진행상황</h2>
       {visible.length === 0 ? (
         <p className="text-muted text-xs m-0">평가를 실행하면 실제 처리 단계가 여기에 표시됩니다.</p>
       ) : (
         <>
-          <ul className="list-none m-0 p-0 relative before:content-[''] before:absolute before:left-[3px] before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+          <ul className="list-none m-0 p-0 relative">
             {visible.map((item, i) => {
               const sec = seconds.get(item.stage)
               return (
@@ -26,7 +27,7 @@ export function ProgressList({ items, timings }: { items: ProgressItem[]; timing
                   className={`relative flex items-center gap-2.5 py-2 pl-[22px] text-[12.5px] ${item.status === 'active' ? 'font-semibold text-ink' : 'text-ink'}`}
                 >
                   <span
-                    className={`absolute left-0 w-2 h-2 rounded-full flex-none shadow-[0_0_0_3px_var(--color-surface)] ${
+                    className={`absolute left-0 w-2 h-2 rounded-full flex-none ${
                       item.status === 'active' ? 'bg-accent animate-pulse-dot' : 'bg-title'
                     }`}
                   />
@@ -47,6 +48,6 @@ export function ProgressList({ items, timings }: { items: ProgressItem[]; timing
           </p>
         </>
       )}
-    </Card>
+    </div>
   )
 }

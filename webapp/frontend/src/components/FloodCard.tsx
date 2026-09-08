@@ -102,11 +102,11 @@ export function FloodCard({
   )
   const body = (
     <>
-      <div className="flex items-center gap-2.5 mb-2">
-        <span className={`inline-block py-[5px] px-3 rounded-full text-[11.5px] font-bold tracking-[0.2px] text-white shadow-[0_3px_8px_-3px_rgba(0,0,0,0.3)] ${tierBadgeBgClass(flood.tier, coverageLabel ? 'OUT_OF_SCOPE' : flood.coverage)}`}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className={`inline-block py-[5px] px-3 rounded-full text-[11.5px] font-bold tracking-[0.2px] text-white ${tierBadgeBgClass(flood.tier, coverageLabel ? 'OUT_OF_SCOPE' : flood.coverage)}`}>
           {tierLabel || '판정'}
         </span>
-        <span className="text-[13.5px] leading-relaxed text-ink">{lead}</span>
+        <span className="text-[14.5px] leading-[1.75] text-ink">{lead}</span>
       </div>
       {diagram ? (
         <div className="grid grid-cols-1 min-[1200px]:grid-cols-[300px_minmax(0,1fr)] gap-x-5 gap-y-2 items-center">

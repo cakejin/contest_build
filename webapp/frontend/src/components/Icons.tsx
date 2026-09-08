@@ -71,11 +71,9 @@ export function LineIcon({ icon, className }: { icon: IconKey; className?: strin
 
 export function CardHead({ icon, title }: { icon: IconKey; title: string }) {
   return (
-    <div className="flex items-center gap-2.5 pb-3 mb-4 border-b border-surface-alt">
-      <span className="flex-none w-[38px] h-[38px] rounded-[11px] bg-gradient-to-br from-accent-soft to-white border border-accent/20 text-title flex items-center justify-center">
-        <LineIcon icon={icon} className="w-5 h-5" />
-      </span>
-      <h2 className="text-[15.5px] font-bold m-0 text-ink tracking-tight">{title}</h2>
+    <div className="flex items-center gap-2 mb-5">
+      <LineIcon icon={icon} className="w-[18px] h-[18px] text-title flex-none" />
+      <h2 className="text-[17px] font-extrabold m-0 text-ink tracking-tight">{title}</h2>
     </div>
   )
 }

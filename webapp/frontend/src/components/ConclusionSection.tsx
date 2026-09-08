@@ -39,14 +39,14 @@ export function ConclusionSection({ data, meta, loading }: { data: PartialResult
   const nearestMark = marks?.nearest_m != null && marks.nearest_m <= 2000 ? marks : null
 
   return (
-    <Section id="sec-conclusion" n={1} title="결론" note="먼저 볼 것" tone={sev?.region_triggered ? 'alert' : 'default'}>
+    <Section id="sec-conclusion" title="결론" note="먼저 볼 것">
       {alertPending ? (
-        <div className="flex items-center gap-2 text-xs text-muted bg-surface-alt rounded-lg py-3 px-4">
+        <div className="flex items-center gap-2 text-xs text-muted py-1">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse-dot flex-none" />
           {advisory === undefined ? '특보를 조회하고 있어요' : '특보 지역 담보를 재계산하고 있어요'}
         </div>
       ) : sev?.region_triggered ? (
-        <div className="flex items-center gap-3.5 bg-[#fdecea] rounded-lg py-3.5 px-4">
+        <div className="flex items-center gap-3.5 bg-[#fdecea] rounded-lg py-4 px-5">
           <Lozenge tone="solid">재심사 알림 · {sev.warning_count > 0 ? '심각' : sev.advisory_count > 0 ? '주의' : '강수미확인'}</Lozenge>
           <div className="min-w-0">
             <div className="text-[15px] font-extrabold text-ink leading-snug">
@@ -62,9 +62,9 @@ export function ConclusionSection({ data, meta, loading }: { data: PartialResult
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-3 bg-surface-alt rounded-lg py-3 px-4">
+        <div className="flex items-center gap-3 py-1">
           <Lozenge tone="green">재심사 알림 없음</Lozenge>
-          <span className="text-[12.5px] text-ink">
+          <span className="text-[13px] text-ink">
             {advisory && advisory.active_warnings.length > 0
               ? `특보 ${advisory.active_warnings.length}건이 있으나 호우·태풍·홍수·폭풍해일 경보 이상은 아니에요`
               : '조회 시점에 이 지역 특보가 없어요'}
@@ -73,7 +73,7 @@ export function ConclusionSection({ data, meta, loading }: { data: PartialResult
       )}
 
       {flood && building && eal ? (
-        <p className="text-[14px] leading-relaxed text-ink mt-3 mb-0">
+        <p className="text-[15.5px] leading-[1.8] text-ink mt-5 mb-0">
           이 담보는 <b>{flood.river_name ? `${flood.river_name} ` : ''}{tierWord(flood.tier, data.coverage_label)}</b>
           {flood.coverage === 'IN_SCOPE' && flood.distance_to_polygon_m != null ? `(폴리곤까지 ${flood.distance_to_polygon_m}m` : ''}
           {flood.coverage === 'IN_SCOPE' && depth?.reliable ? `, 예상 침수심 ${depth.label}` : ''}
@@ -96,13 +96,13 @@ export function ConclusionSection({ data, meta, loading }: { data: PartialResult
           )}
         </p>
       ) : (
-        <p className="text-muted text-xs mt-3 mb-0 flex items-center gap-2">
+        <p className="text-muted text-xs mt-5 mb-0 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse-dot flex-none" />
           침수 판정·건물·예상손실을 계산하고 있어요
         </p>
       )}
 
-      <div className="flex items-center gap-2 mt-3.5 flex-wrap">
+      <div className="flex items-center gap-2.5 mt-6 flex-wrap">
         <button
           type="button"
           disabled
@@ -112,7 +112,7 @@ export function ConclusionSection({ data, meta, loading }: { data: PartialResult
           심사역 확인
         </button>
         {sev?.region_triggered && (
-          <a href="#sec-advisory" className="bg-surface text-ink border border-border rounded-lg py-2 px-3.5 text-[13px] font-bold no-underline">
+          <a href="#sec-advisory" className="bg-surface-alt text-ink rounded-lg py-2 px-3.5 text-[13px] font-bold no-underline">
             담보별 알림 {sev.alert_count}건
           </a>
         )}

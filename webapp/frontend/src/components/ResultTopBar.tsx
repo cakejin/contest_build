@@ -44,8 +44,8 @@ export function ResultTopBar({
   const buildingLevel = building?.vulnerability_score == null ? null : building.vulnerability_score >= 70 ? '높음' : building.vulnerability_score >= 40 ? '중간' : '낮음'
 
   return (
-    <div className="sticky top-0 z-10 bg-surface border-b border-surface-alt rounded-t-card">
-      <div className="flex items-center gap-2.5 flex-wrap px-5 pt-3 pb-1.5 text-[12px] text-muted">
+    <div className="sticky top-0 z-10 bg-surface border-b border-surface-alt">
+      <div className="flex items-center gap-2.5 flex-wrap px-8 pt-4 pb-2 text-[12px] text-muted">
         <span className="min-w-0 truncate">
           <b className="text-ink text-[13.5px]">
             {meta?.collateralId && <span className="text-accent mr-1.5">{meta.collateralId}</span>}
@@ -86,7 +86,7 @@ export function ResultTopBar({
           )}
         </span>
       </div>
-      <nav className="flex gap-0.5 px-3 overflow-x-auto" aria-label="결과 섹션">
+      <nav className="flex gap-1 px-6 overflow-x-auto" aria-label="결과 섹션">
         {SECTIONS.map((s) => {
           const on = s.id === active
           return (

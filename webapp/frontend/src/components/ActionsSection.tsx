@@ -59,13 +59,13 @@ export function ActionsSection({ data, meta, loading }: { data: PartialResult; m
   return (
     <PanelSection id="sec-actions" title="권고 조치" note="정책 템플릿 4종 · 인하·지원 방향만 · 읽기 전용">
       {ordered.map((t, i) => (
-        <div key={t.key} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2.5 items-start py-2.5 border-t border-surface-alt text-[13px]">
+        <div key={t.key} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-start py-3 border-t border-surface-alt text-[13.5px]">
           <span className="w-[18px] h-[18px] rounded-full bg-accent-soft/70 text-title text-[11px] font-extrabold flex items-center justify-center flex-none mt-px">{i + 1}</span>
           <span>
             <b>{t.text}</b>
             <span className="text-[11px] text-muted"> — 왜: {why[t.key] ?? ''}</span>
             {t.key === 'ADAPTATION_INCENTIVE' && adaptation && (
-              <div className="mt-2 bg-surface-alt rounded-lg py-2.5 px-3 flex items-center gap-3 flex-wrap text-[12px]">
+              <div className="mt-2 flex items-center gap-3 flex-wrap text-[12px]">
                 <span className="text-muted">설치 시 예상 EAL</span>
                 <span className="font-extrabold tabular-nums">{fmtWon(adaptation.baseline_EAL_mean)}</span>
                 <span className="text-muted">→</span>
@@ -90,7 +90,7 @@ export function ActionsSection({ data, meta, loading }: { data: PartialResult; m
           이 담보({meta?.collateralId})에 대한 배치 추천: {myRec.actions.join(' · ')}
         </p>
       )}
-      <div className="flex items-center gap-2.5 pt-3 text-[11px] text-muted">
+      <div className="flex items-center gap-2.5 pt-4 text-[11.5px] text-muted">
         <Lozenge tone="mint">원칙</Lozenge>리스크 식별의 목적은 배제가 아니라 보호와 적응 지원 — 기존 차주 소급 불리 적용 없음
       </div>
     </PanelSection>

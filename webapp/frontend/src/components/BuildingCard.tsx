@@ -35,7 +35,7 @@ export function BuildingCard({ data, bare }: { data: BuildingData; bare?: boolea
   const body = (
     <>
       {data.vulnerability_score != null && level ? (
-        <p className="text-[13.5px] leading-relaxed text-ink mt-0 mb-2">
+        <p className="text-[14.5px] leading-[1.75] text-ink mt-0 mb-4">
           건물 자체는 <b>{data.vulnerability_score}점으로 {level} 편</b>이에요.
           {top ? (
             <>
@@ -45,11 +45,11 @@ export function BuildingCard({ data, bare }: { data: BuildingData; bare?: boolea
         </p>
       ) : null}
       {factors.length > 0 && (
-        <div className="grid grid-cols-4 max-[700px]:grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-4 max-[700px]:grid-cols-2 gap-6 mb-5">
           {factors.map((f, i) => (
-            <div key={i} className="bg-surface-alt rounded-[10px] py-2.5 px-3">
+            <div key={i} className="border-t border-surface-alt pt-2.5">
               <div className="text-[11px] text-muted">{f.name}</div>
-              <div className="text-[17px] font-extrabold tabular-nums leading-tight">
+              <div className="text-[20px] font-extrabold tabular-nums leading-tight mt-0.5">
                 {contrib(f).toFixed(1)}
                 <span className="text-[11px] text-muted font-medium"> /{Math.round(f.weight_used * 100)}</span>
               </div>
@@ -96,8 +96,8 @@ export function BuildingCard({ data, bare }: { data: BuildingData; bare?: boolea
         </div>
       )}
       {floorExposure && (
-        <div className="mt-3 rounded-[10px] bg-surface-alt py-3 px-3.5">
-          <div className="flex justify-between items-center text-[13px]">
+        <div className="mt-5">
+          <div className="flex justify-between items-center text-[13.5px]">
             <span className="text-muted">층별 리스크</span>
             {floorExposure.floor_risk_tier ? (
               <span className={`text-xs font-bold py-1 px-2.5 rounded-full ${TIER_CLASS[floorExposure.floor_risk_tier]}`}>{TIER_LABEL[floorExposure.floor_risk_tier]}</span>
@@ -117,14 +117,14 @@ export function BuildingCard({ data, bare }: { data: BuildingData; bare?: boolea
       )}
       {factors.length > 0 && (
         <Details summary={`요인 ${factors.length}개 · 가중치 · 출처`}>
-          <table className="w-full border-collapse text-xs rounded-[10px] overflow-hidden">
+          <table className="w-full border-collapse text-xs">
             <thead>
               <tr>
-                <th className="text-left py-2 px-2 border-b border-surface-alt text-muted font-semibold bg-surface-alt">항목</th>
-                <th className="text-left py-2 px-2 border-b border-surface-alt text-muted font-semibold bg-surface-alt">원값</th>
-                <th className="text-right py-2 px-2 border-b border-surface-alt text-muted font-semibold bg-surface-alt">정규화점수</th>
-                <th className="text-right py-2 px-2 border-b border-surface-alt text-muted font-semibold bg-surface-alt">가중치</th>
-                <th className="text-right py-2 px-2 border-b border-surface-alt text-muted font-semibold bg-surface-alt">기여</th>
+                <th className="text-left py-2 px-2 border-b border-surface-alt text-muted font-semibold">항목</th>
+                <th className="text-left py-2 px-2 border-b border-surface-alt text-muted font-semibold">원값</th>
+                <th className="text-right py-2 px-2 border-b border-surface-alt text-muted font-semibold">정규화점수</th>
+                <th className="text-right py-2 px-2 border-b border-surface-alt text-muted font-semibold">가중치</th>
+                <th className="text-right py-2 px-2 border-b border-surface-alt text-muted font-semibold">기여</th>
               </tr>
             </thead>
             <tbody>

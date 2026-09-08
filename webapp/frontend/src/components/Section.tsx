@@ -1,47 +1,34 @@
 import type { ReactNode } from 'react'
 
-/* 2026-09-08 — 결과 화면 확정안(디자인 캔버스 11p) 섹션 골격: 번호 원 + 제목 + 오른쪽 작은 설명.
-   기존 Card와 달리 아이콘 대신 번호를 쓴다 — 읽는 순서를 고정하기 위함(결론 → 요약 → 조치 → 근거).
-   tone은 테두리 색만 바꾼다(결론=경고 톤, 조치=민트 톤). 색 띠·그라데이션은 쓰지 않는다. */
-export type SectionTone = 'default' | 'alert' | 'action'
-
-const TONE_BORDER: Record<SectionTone, string> = {
-  default: 'border-border/50',
-  alert: 'border-[#f3c9c4]',
-  action: 'border-accent-soft',
-}
-
+/* 2026-09-08 — 결과 화면 확정안(디자인 캔버스 11p) 섹션 골격. 2026-09-09 보고서형 미니멀로 카드 껍데기
+   (테두리·그림자·번호 원·톤 테두리)를 걷어내고 제목 + 오른쪽 작은 설명만 남긴다 — PanelSection과 같은 결.
+   결론의 경고 톤은 테두리가 아니라 본문의 알림 배너가 담당한다. */
 export function Section({
   id,
-  n,
   title,
   note,
-  tone = 'default',
   children,
 }: {
   id: string
-  n: number
   title: string
   note?: ReactNode
-  tone?: SectionTone
   children: ReactNode
 }) {
   return (
-    <section id={id} className={`bg-surface border ${TONE_BORDER[tone]} rounded-card shadow-card mb-3 scroll-mt-[100px]`}>
-      <div className="flex items-center gap-2.5 py-3 px-[18px]">
-        <span className="flex-none w-[22px] h-[22px] rounded-full bg-ink text-white text-[11.5px] font-bold flex items-center justify-center">{n}</span>
-        <h2 className="m-0 text-[13.5px] font-bold text-ink">{title}</h2>
-        {note && <span className="ml-auto text-[11.5px] text-muted text-right">{note}</span>}
+    <section id={id} className="px-8 pt-8 pb-4 scroll-mt-[100px]">
+      <div className="flex items-baseline gap-2.5 mb-4">
+        <h2 className="m-0 text-[18px] font-extrabold text-ink">{title}</h2>
+        {note && <span className="ml-auto text-[12px] text-muted text-right">{note}</span>}
       </div>
-      <div className="px-[18px] pb-4">{children}</div>
+      {children}
     </section>
   )
 }
 
 /** 아직 도착하지 않은 단계용 — 섹션 모양은 유지하고 본문만 "계산 중". */
-export function PendingSection({ id, n, title, text }: { id: string; n: number; title: string; text: string }) {
+export function PendingSection({ id, title, text }: { id: string; title: string; text: string }) {
   return (
-    <Section id={id} n={n} title={title}>
+    <Section id={id} title={title}>
       <p className="text-muted text-xs flex items-center gap-2 m-0">
         <span className="w-2 h-2 rounded-full bg-accent animate-pulse-dot flex-none" />
         {text}
@@ -68,7 +55,7 @@ export function Lozenge({ tone, children }: { tone: LozengeTone; children: React
 /** 요약 행: 키 | 값 | 배지(오른쪽 열 고정) — 배지 위치를 한 열로 통일(11p 확정안). */
 export function SummaryRow({ k, children, badge }: { k: string; children: ReactNode; badge?: ReactNode }) {
   return (
-    <div className="grid grid-cols-[130px_minmax(0,1fr)_auto] gap-2 items-center py-2.5 border-t border-surface-alt text-[13.5px]">
+    <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-surface-alt text-[14px]">
       <span className="text-muted font-semibold">{k}</span>
       <span className="min-w-0">{children}</span>
       <span className="flex justify-end">{badge}</span>

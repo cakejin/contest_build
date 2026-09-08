@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
    "제목 + 출처(회색) + 쉬운 한 문장 + 시각 1개 + 표" 골격으로 세로로 이어진다(토스 분석 탭 흐름).
    섹션마다 카드를 따로 두지 않는다. id는 섹션 탭 앵커용. */
 export function Panel({ children }: { children: ReactNode }) {
-  return <div className="bg-surface border border-border/50 rounded-card shadow-card mb-3">{children}</div>
+  // 2026-09-09 — 보고서형 미니멀: 패널 자체의 테두리·그림자 없음(결과 시트가 곧 종이). 섹션은 여백으로만 나뉜다.
+  return <div>{children}</div>
 }
 
 export function PanelSection({
@@ -23,13 +24,13 @@ export function PanelSection({
   children?: ReactNode
 }) {
   return (
-    <section id={id} className="px-6 pt-6 pb-3 border-t border-surface-alt first:border-t-0 scroll-mt-[100px]">
-      <h3 className="m-0 text-[17px] font-extrabold text-ink flex items-baseline gap-2 flex-wrap">
+    <section id={id} className="px-8 pt-10 pb-4 scroll-mt-[100px]">
+      <h3 className="m-0 text-[18px] font-extrabold text-ink flex items-baseline gap-2 flex-wrap">
         {title}
         {note && <small className="text-[12px] font-normal text-muted">{note}</small>}
         {help && <span className="ml-auto text-[12px] font-normal text-muted">{help}</span>}
       </h3>
-      {lead && <p className="text-[14px] leading-relaxed text-[#3a4446] mt-2 mb-3.5">{lead}</p>}
+      {lead && <p className="text-[14.5px] leading-[1.75] text-[#3a4446] mt-2.5 mb-4">{lead}</p>}
       {children}
     </section>
   )

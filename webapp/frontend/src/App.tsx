@@ -61,7 +61,7 @@ function App() {
         return
       }
       const bottom = headerRef.current?.getBoundingClientRect().bottom ?? 0
-      setBoxHeight(Math.max(480, window.innerHeight - bottom - 44))
+      setBoxHeight(Math.max(480, window.innerHeight - bottom - 56))
     }
     measure()
     window.addEventListener('resize', measure)
@@ -196,7 +196,7 @@ function App() {
       <div ref={headerRef}>
         <Header />
       </div>
-      <main className="max-w-[1600px] mx-auto pt-5 px-5 pb-6 grid grid-cols-1 min-[900px]:grid-cols-[300px_minmax(0,1fr)_56px] min-[1200px]:grid-cols-[320px_minmax(0,1fr)_260px] gap-4 items-start">
+      <main className="max-w-[1600px] mx-auto pt-5 px-8 pb-8 grid grid-cols-1 min-[900px]:grid-cols-[300px_minmax(0,1fr)_56px] min-[1200px]:grid-cols-[320px_minmax(0,1fr)_240px] gap-8 items-start">
         <section className="min-[900px]:sticky min-[900px]:top-5">
           <AssessForm
             inputMode={inputMode}
@@ -227,8 +227,8 @@ function App() {
 
         <section className="min-w-0">
           {connectionError && !result ? (
-            <div className="bg-surface border border-border/50 rounded-card shadow-card py-[22px] px-6 mb-5">
-              <div className="bg-[#fdecea] text-[#8a1f12] rounded-[10px] py-3.5 px-4 text-[13px]">
+            <div className="bg-surface rounded-card py-7 px-8">
+              <div className="bg-[#fdecea] text-[#8a1f12] rounded-lg py-3.5 px-4 text-[13px]">
                 서버 연결이 끊겼어요. 다시 시도해 주세요.
               </div>
             </div>
@@ -246,9 +246,9 @@ function App() {
                 aria-expanded={railOpen}
                 aria-label="진행상황 열기"
                 title="진행상황"
-                className="w-14 bg-surface border border-border/50 rounded-card shadow-card py-3 px-0 flex flex-col items-center gap-1.5 cursor-pointer text-muted hover:text-ink"
+                className="w-14 bg-surface rounded-card py-3 px-0 flex flex-col items-center gap-1.5 cursor-pointer text-muted hover:text-ink border-0"
               >
-                <span className="relative w-8 h-8 rounded-[9px] bg-gradient-to-br from-accent-soft to-white border border-accent/20 text-title flex items-center justify-center">
+                <span className="relative w-8 h-8 rounded-full bg-accent-soft text-title flex items-center justify-center">
                   <LineIcon icon="chart" className="w-4 h-4" />
                   {loading && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-accent animate-pulse-dot shadow-[0_0_0_2px_var(--color-surface)]" />}
                 </span>
@@ -257,7 +257,7 @@ function App() {
                 </span>
               </button>
               {railOpen && (
-                <div className="absolute top-0 right-0 w-[280px] z-20 drop-shadow-xl [&>div]:mb-0">
+                <div className="absolute top-0 right-0 w-[280px] z-20 bg-surface rounded-card shadow-card-lg py-5 px-6">
                   <button type="button" onClick={() => setRailOpen(false)} aria-label="닫기" className="absolute top-3 right-4 z-10 bg-transparent border-0 text-muted hover:text-ink text-lg leading-none cursor-pointer">
                     ×
                   </button>

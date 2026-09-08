@@ -4,8 +4,8 @@ import type { ReactNode } from 'react'
    네이티브 <details>라 키보드·스크린리더가 그대로 동작한다. 열림 상태는 저장하지 않는다. */
 export function Details({ summary, defaultOpen = false, children }: { summary: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
   return (
-    <details className="group border-t border-surface-alt mt-2" open={defaultOpen}>
-      <summary className="list-none cursor-pointer select-none flex items-center gap-2 py-2.5 text-[12.5px] font-semibold text-muted [&::-webkit-details-marker]:hidden">
+    <details className="group mt-3" open={defaultOpen}>
+      <summary className="list-none cursor-pointer select-none flex items-center gap-2 py-2 text-[12.5px] font-semibold text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 flex-none transition-transform group-open:rotate-180">
           <path d="M6 9l6 6 6-6" />
         </svg>

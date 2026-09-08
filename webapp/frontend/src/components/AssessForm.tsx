@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { InputMode, PortfolioListItem, QueryMode, RegionPreset, ResolvedRegion } from '../types'
-import { LineIcon } from './Icons'
 import { AddressField } from './AddressField'
 import { PortfolioPicker } from './PortfolioPicker'
 
@@ -167,13 +166,11 @@ export function AssessForm({
   return (
     <div
       style={height ? { height } : undefined}
-      className="bg-surface border border-border/50 rounded-card shadow-card px-6 pt-4 pb-5 flex flex-col"
+      className="px-1 pt-1 pb-2 flex flex-col"
     >
-      <div className="flex items-center gap-2 pb-2.5 mb-1 border-b border-surface-alt flex-none">
-        <span className="flex-none w-7 h-7 rounded-[9px] bg-gradient-to-br from-accent-soft to-white border border-accent/20 text-title flex items-center justify-center">
-          <LineIcon icon="result" className="w-4 h-4" />
-        </span>
-        <h2 className="text-[15px] font-bold m-0 text-ink tracking-tight whitespace-nowrap">담보 평가</h2>
+      {/* 2026-09-09 — 보고서형 미니멀: 폼은 바탕 위에 바로 놓인다(카드 테두리·그림자·아이콘 타일 없음). */}
+      <div className="flex items-center gap-2 pb-3 mb-2 flex-none">
+        <h2 className="text-[17px] font-extrabold m-0 text-ink tracking-tight whitespace-nowrap">담보 평가</h2>
         <div className="ml-auto flex gap-2" role="tablist" aria-label="입력 방식">
           <button type="button" role="tab" aria-selected={inputMode === 'new'} className={modeTabClass(inputMode === 'new')} onClick={() => onInputModeChange('new')}>
             신규 담보
@@ -321,7 +318,7 @@ export function AssessForm({
         <button
           type="submit"
           disabled={submitting || historicalNeedsDate}
-          className="mt-4 flex-none w-full bg-accent text-white border-none rounded-control py-3 px-3.5 text-sm font-bold cursor-pointer shadow-[0_6px_16px_-6px_rgba(0,168,143,0.55)] transition-[background,transform,box-shadow] duration-150 ease-out enabled:hover:bg-title enabled:hover:-translate-y-px enabled:hover:shadow-[0_10px_20px_-8px_rgba(0,127,108,0.5)] enabled:active:translate-y-0 disabled:bg-border disabled:shadow-none disabled:cursor-not-allowed"
+          className="mt-4 flex-none w-full bg-title text-white border-none rounded-control py-3 px-3.5 text-sm font-bold cursor-pointer transition-colors duration-150 ease-out enabled:hover:bg-accent disabled:bg-border disabled:cursor-not-allowed"
         >
           {submitting ? '평가 실행 중...' : '평가 실행'}
         </button>
