@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Header } from './components/Header'
 import { AssessForm } from './components/AssessForm'
 import { ProgressList } from './components/ProgressList'
+import { LineIcon } from './components/Icons'
+import { STAGE_SHORT } from './lib/stages'
 import { ResultSection } from './components/ResultSection'
 import { fetchRegionPresets, startAssessStream } from './api'
 import type { AssessResult, InputMode, PartialResult, PortfolioListItem, ProgressItem, QueryMode, RegionPreset, ResolvedRegion, SubmittedMeta } from './types'
@@ -42,6 +44,29 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [connectionError, setConnectionError] = useState(false)
   const closeStreamRef = useRef<(() => void) | null>(null)
+  // 2026-09-08 — 토스형 3단 레이아웃(디자인 캔버스 12p 3안): 양쪽 열은 sticky, 가운데 결과 상자만
+  // 내부 스크롤. 상자 높이 = 화면 높이 − 헤더 아래 여백. 900px 미만에서는 세로 스택 + 높이 자동.
+  // 2026-09-08(계속7) — 토스증권처럼 900~1199px에서는 오른쪽 진행상황 열을 56px 아이콘 레일로 접고,
+  // 아이콘을 누르면 결과 상자 위에 패널이 겹쳐 열린다(가운데를 더 좁히지 않기 위해 밀지 않고 덮음).
+  const headerRef = useRef<HTMLDivElement | null>(null)
+  const [boxHeight, setBoxHeight] = useState<number | undefined>(undefined)
+  const [railMode, setRailMode] = useState(false)
+  const [railOpen, setRailOpen] = useState(false)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const wide = window.matchMedia('(min-width: 900px)').matches
+      setRailMode(wide && !window.matchMedia('(min-width: 1200px)').matches)
+      if (!wide) {
+        setBoxHeight(undefined)
+        return
+      }
+      const bottom = headerRef.current?.getBoundingClientRect().bottom ?? 0
+      setBoxHeight(Math.max(480, window.innerHeight - bottom - 44))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   useEffect(() => {
     // 2026-09-08 — 첫 화면에 주소를 미리 채우지 않는다(UX 점검: 예시인지 입력값인지 구분이 안 됐음).
@@ -96,6 +121,9 @@ function App() {
       address,
       collateralId: inputMode === 'portfolio' ? selectedCollateralId : null,
       queryDate,
+      collateralValue: Number(collateralValue) > 0 ? Number(collateralValue) : null,
+      floorType: floorType || null,
+      floorNo: floorType ? floorNo || null : null,
     })
 
     closeStreamRef.current = startAssessStream(
@@ -111,7 +139,7 @@ function App() {
         onProgress: (payload) => {
           setProgressItems((prev) => [
             ...prev.map((it) => (it.status === 'active' ? { ...it, status: 'done' as const } : it)),
-            { message: payload.message, status: 'active' as const },
+            { stage: payload.stage, message: payload.message, status: 'active' as const },
           ])
         },
         onPartial: ({ stage, data }) => {
@@ -123,8 +151,19 @@ function App() {
                 return { ...prev, geocoded: data as PartialResult['geocoded'] }
               case 'flood': {
                 // data.flood는 FloodAgentOutput 전체(asdict) — 최종 result.flood와 같은 형태(FloodData)다.
-                const d = data as { flood: PartialResult['flood']; coverage_label: string | null }
-                return { ...prev, flood: d.flood, coverage_label: d.coverage_label ?? undefined }
+                const d = data as {
+                  flood: PartialResult['flood']
+                  coverage_label: string | null
+                  flood_depth_class?: PartialResult['flood_depth_class']
+                  flood_marks?: PartialResult['flood_marks']
+                }
+                return {
+                  ...prev,
+                  flood: d.flood,
+                  coverage_label: d.coverage_label ?? undefined,
+                  flood_depth_class: d.flood_depth_class ?? null,
+                  flood_marks: d.flood_marks ?? null,
+                }
               }
               case 'building':
                 return { ...prev, building: data as PartialResult['building'] }
@@ -154,9 +193,11 @@ function App() {
 
   return (
     <>
-      <Header />
-      <main className="max-w-[1120px] mx-auto pt-7 px-5 pb-[72px] grid grid-cols-[380px_1fr] max-[860px]:grid-cols-1 gap-6 items-start">
-        <section>
+      <div ref={headerRef}>
+        <Header />
+      </div>
+      <main className="max-w-[1600px] mx-auto pt-5 px-5 pb-6 grid grid-cols-1 min-[900px]:grid-cols-[300px_minmax(0,1fr)_56px] min-[1200px]:grid-cols-[320px_minmax(0,1fr)_260px] gap-4 items-start">
+        <section className="min-[900px]:sticky min-[900px]:top-5">
           <AssessForm
             inputMode={inputMode}
             address={address}
@@ -180,11 +221,11 @@ function App() {
             onQueryDateChange={setQueryDate}
             onEventChip={handleEventChip}
             onSubmit={handleSubmit}
+            height={boxHeight}
           />
-          <ProgressList items={progressItems} />
         </section>
 
-        <section>
+        <section className="min-w-0">
           {connectionError && !result ? (
             <div className="bg-surface border border-border/50 rounded-card shadow-card py-[22px] px-6 mb-5">
               <div className="bg-[#fdecea] text-[#8a1f12] rounded-[10px] py-3.5 px-4 text-[13px]">
@@ -192,7 +233,40 @@ function App() {
               </div>
             </div>
           ) : (
-            <ResultSection result={result} partial={partial} loading={loading} meta={submittedMeta} />
+            <ResultSection result={result} partial={partial} loading={loading} meta={submittedMeta} boxHeight={boxHeight} />
+          )}
+        </section>
+
+        <section className="min-[900px]:sticky min-[900px]:top-5 relative z-30">
+          {railMode ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setRailOpen((v) => !v)}
+                aria-expanded={railOpen}
+                aria-label="진행상황 열기"
+                title="진행상황"
+                className="w-14 bg-surface border border-border/50 rounded-card shadow-card py-3 px-0 flex flex-col items-center gap-1.5 cursor-pointer text-muted hover:text-ink"
+              >
+                <span className="relative w-8 h-8 rounded-[9px] bg-gradient-to-br from-accent-soft to-white border border-accent/20 text-title flex items-center justify-center">
+                  <LineIcon icon="chart" className="w-4 h-4" />
+                  {loading && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-accent animate-pulse-dot shadow-[0_0_0_2px_var(--color-surface)]" />}
+                </span>
+                <span className="text-[10.5px] font-semibold leading-none">
+                  {progressItems.length > 0 ? (STAGE_SHORT[progressItems[progressItems.length - 1].stage] ?? '진행') : '진행'}
+                </span>
+              </button>
+              {railOpen && (
+                <div className="absolute top-0 right-0 w-[280px] z-20 drop-shadow-xl [&>div]:mb-0">
+                  <button type="button" onClick={() => setRailOpen(false)} aria-label="닫기" className="absolute top-3 right-4 z-10 bg-transparent border-0 text-muted hover:text-ink text-lg leading-none cursor-pointer">
+                    ×
+                  </button>
+                  <ProgressList items={progressItems} timings={result?.timings} />
+                </div>
+              )}
+            </>
+          ) : (
+            <ProgressList items={progressItems} timings={result?.timings} />
           )}
         </section>
       </main>

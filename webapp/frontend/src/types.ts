@@ -61,18 +61,30 @@ export interface SubmittedMeta {
   address: string
   collateralId: string | null
   queryDate: string
+  // 2026-09-08 — 결론·요약의 "담보가액 대비 %" 계산용(응답에는 담보가액이 없다).
+  collateralValue: number | null
+  // 2026-09-08(계속7) — 침수 단면도의 "심사 대상 층" 라벨용(응답엔 층 입력값이 없다).
+  floorType: string | null
+  floorNo: string | null
 }
 
 export interface FloodResult {
   coverage: string
   tier: string
   river_name: string | null
+  region_name?: string | null
   distance_to_polygon_m: number | null
   freq_label: string | null
+  seg_code?: string | null
+  source_shp_file?: string | null
+  license?: string | null
+  methodology_disclaimer?: string
 }
 
 export interface FloodData {
   flood: FloodResult
+  source_id?: string
+  field_sources?: Record<string, string>
 }
 
 export interface ContributingFactor {
@@ -80,6 +92,7 @@ export interface ContributingFactor {
   raw_value: string | number
   normalized_score: number
   weight_used: number
+  contribution?: number
 }
 
 // HANDOVER §⑧ 층별 리스크 차등화 — target_floor 미입력 시 null(건물 전체 스코어링 폴백).
@@ -98,9 +111,23 @@ export interface BuildingData {
   vulnerability_score: number | null
   status: string // "OK" | "PARTIAL" | "FAILED"
   contributing_factors: ContributingFactor[]
+  source?: string
+  source_id?: string
   missing_fields?: string[]
   note?: string | null
   floor_exposure?: FloorExposure | null
+  // 2026-09-08 ③ — 건축물대장 표시용 요약(취약도 계산엔 미사용). 조회 실패 시 null.
+  registry?: {
+    tot_area?: number | null
+    arch_area?: number | null
+    grnd_flr_cnt?: number | null
+    ugrnd_flr_cnt?: number | null
+    height_m?: number | null
+    roof?: string | null
+    bld_name?: string | null
+    use_apr_day?: string | null
+    earthquake_design?: 'Y' | 'N' | null
+  } | null
 }
 
 export interface EalBin {
@@ -122,8 +149,22 @@ export interface EalStats {
   reason: string | null
 }
 
+// 2026-09-08 ③ — 적응 투자(차수판) 전후 EAL. 결정론 규칙(config.ADAPTATION_ASSUMPTION_NOTE), 참고치.
+export interface AdaptationScenario {
+  barrier_height_m: number
+  EAL_mean: number
+  change_pct: number
+}
+export interface AdaptationResult {
+  assumption_note: string
+  baseline_EAL_mean: number
+  scenarios: AdaptationScenario[]
+}
+
 export interface ScenarioData {
   eal: EalStats
+  source_id?: string
+  adaptation?: AdaptationResult | null
 }
 
 export interface MemoSection {
@@ -144,11 +185,56 @@ export interface AdvisoryWarning {
   source_url: string
 }
 
+export interface AdvisoryEvent {
+  event_id: string
+  issued_at: string
+  time_precision: string
+  event_type: string
+  warning_type: string | null
+  description: string
+  source_url: string
+  target_region_text: string
+  severity_level: string | null
+}
+
 export interface AdvisoryData {
   active_warnings: AdvisoryWarning[]
   trigger_event: boolean
   mode: string
   status: string
+  timeline?: AdvisoryEvent[]
+  // 2026-09-08 ③ — 재심사 트리거를 켠 이벤트 id(규칙: 백엔드 is_high_severity_event 하나).
+  trigger_event_ids?: string[]
+}
+
+// 2026-09-08 ③ — 침수심 등급(SEG_CODE) 범위. tier가 '내부'가 아니면 reliable=false(가장 가까운 폴리곤의 등급일 뿐).
+export interface FloodDepthClass {
+  code: string
+  lower_m: number
+  upper_m: number
+  label: string
+  rank: number
+  rank_max: number
+  reliable: boolean
+}
+
+// 2026-09-08 ③ — 좌표 주변 실측 침수흔적 요약(건수·최근접만, 좌표는 내보내지 않음 — 재배포 금지 데이터).
+export interface FloodMarksNearby {
+  nearest_m: number | null
+  nearest_year: string | null
+  nearest_cause: string | null
+  nearest_depth_cm: number | null
+  counts_by_radius_m: Record<string, number>
+  total_in_dataset: number
+  dataset: string
+  license_note: string
+}
+
+// 2026-09-08 ③ — 단계별 실측 소요시간(on_stage 호출 시각 차이).
+export interface Timings {
+  stages: { stage: string; seconds: number }[]
+  total_seconds: number
+  alert_latency_seconds: number | null
 }
 
 export interface PortfolioAlert {
@@ -205,6 +291,12 @@ export interface EsgRecommendation {
   actions: string[]
 }
 
+// 2026-09-08 — 권고 조치 섹션용 정책 템플릿(백엔드 ACTION_PHRASE_TEMPLATES 그대로).
+export interface ActionTemplate {
+  key: string
+  text: string
+}
+
 export interface AssessResult {
   error?: string
   flood: FloodData
@@ -216,6 +308,10 @@ export interface AssessResult {
   esg_recommendations: EsgRecommendation[]
   insurance_unconfirmed_count?: number
   coverage_label?: string
+  action_templates?: ActionTemplate[]
+  flood_depth_class?: FloodDepthClass | null
+  flood_marks?: FloodMarksNearby | null
+  timings?: Timings
 }
 
 export interface ProgressEventPayload {
@@ -239,10 +335,11 @@ export interface GeocodedData {
 
 // 도착한 단계만 채워지는 결과 — undefined는 "아직 안 옴", portfolio_batch의 null은 "트리거 없어 생략".
 export type PartialResult = Partial<
-  Pick<AssessResult, 'advisory' | 'flood' | 'building' | 'scenario' | 'memo' | 'portfolio_batch' | 'coverage_label' | 'esg_recommendations' | 'insurance_unconfirmed_count'>
+  Pick<AssessResult, 'advisory' | 'flood' | 'building' | 'scenario' | 'memo' | 'portfolio_batch' | 'coverage_label' | 'esg_recommendations' | 'insurance_unconfirmed_count' | 'action_templates' | 'flood_depth_class' | 'flood_marks' | 'timings'>
 > & { geocoded?: GeocodedData }
 
 export interface ProgressItem {
+  stage: string
   message: string
   status: 'active' | 'done'
 }

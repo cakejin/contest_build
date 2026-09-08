@@ -1,5 +1,11 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AssessResult, PartialResult, SubmittedMeta } from '../types'
 import { Card } from './Card'
+import { Panel, PanelSection, PendingPanelSection } from './Panel'
+import { ResultTopBar, SECTIONS } from './ResultTopBar'
+import { ConclusionSection } from './ConclusionSection'
+import { SummarySection } from './SummarySection'
+import { ActionsSection } from './ActionsSection'
 import { FloodCard } from './FloodCard'
 import { BuildingCard } from './BuildingCard'
 import { EalChart } from './EalChart'
@@ -8,53 +14,71 @@ import { AdvisoryCard } from './AdvisoryCard'
 import { PortfolioCard } from './PortfolioCard'
 import { KvRow } from './KvRow'
 import { fmtWon } from '../lib/format'
-import type { IconKey } from './Icons'
+import { Details } from './Details'
 
-// 결과 대시보드 상단에 "지금 이게 어떤 담보인지"를 항상 보여준다(사용자 피드백) —
-// 여러 건을 잇달아 조회하다 보면 화면만 보고는 지금 뜬 게 어느 주소/담보ID 결과인지
-// 헷갈릴 수 있어서다.
-function TargetBanner({ meta }: { meta: SubmittedMeta | null }) {
-  if (!meta) return null
-  return (
-    <div className="flex items-center justify-between gap-3 bg-surface-alt border border-border/50 rounded-card py-2.5 px-4 mb-4 text-[12.5px]">
-      <span className="text-ink font-semibold truncate">
-        {meta.collateralId && <span className="text-accent mr-1.5">{meta.collateralId}</span>}
-        {meta.address}
-      </span>
-      <span className="text-muted flex-none">{meta.queryDate ? `조회일 ${meta.queryDate}` : '현재 시점'}</span>
-    </div>
-  )
+const STAGE_LABEL: Record<string, string> = {
+  advisory: '특보',
+  geocode: '주소',
+  flood: '지도',
+  building: '건축물대장',
+  scenario: 'EAL',
+  portfolio: '포트폴리오 재계산',
+  memo: '심사메모(LLM)',
 }
 
-// 2026-09-07(멘토 피드백 1) — 아직 도착하지 않은 단계의 자리표시자. 카드 모양·순서는
-// 기존 디자인 그대로 두고, 내용만 "계산 중"으로 비워둔다(디자인 변경은 별도 논의 중 —
-// 후보 캔버스 참조).
-function PendingCard({ icon, title, text }: { icon: IconKey; title: string; text: string }) {
-  return (
-    <Card icon={icon} title={title}>
-      <p className="text-muted text-xs flex items-center gap-2 m-0">
-        <span className="w-2 h-2 rounded-full bg-accent animate-pulse-dot flex-none" />
-        {text}
-      </p>
-    </Card>
-  )
-}
-
+/* 2026-09-08 — 결과 화면 ①단계: 순서·섹션 골격(확정안 11p). 결론 → 요약 → 권고 조치 → 침수 → 건물
+   → 손실 → 특보·알림 → 근거 원문. 근거 섹션(4~8)은 기존 카드 컴포넌트를 껍데기 없이(bare) 그대로
+   넣는다 — 토글·출처 이동은 ②, 새 값 추가는 ③, 심사역 확인 버튼 연결은 ④에서. 각 섹션은 SSE partial로
+   그 단계 산출물이 도착하는 즉시 채워진다. */
 export function ResultSection({
   result,
   partial,
   loading,
   meta,
+  boxHeight,
 }: {
   result: AssessResult | null
   partial: PartialResult
   loading: boolean
   meta: SubmittedMeta | null
+  boxHeight?: number
 }) {
   const hasPartial = Object.keys(partial).length > 0
+  // 2026-09-08 — 토스형: 이 컴포넌트가 스크롤 상자를 소유한다. 상자 스크롤 위치로 현재 섹션을 계산해
+  // 상단 탭에 밑줄을 옮기고, 탭 클릭은 상자 안 스크롤로 이동한다(페이지 스크롤은 건드리지 않음).
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const [active, setActive] = useState('sec-conclusion')
+  const TOP_OFFSET = 96 // 고정 줄 높이(담보 한 줄 + 탭) 근사치 — 섹션의 scroll-margin과 맞춘다
+  const updateActive = useCallback(() => {
+    const box = boxRef.current
+    if (!box) return
+    const boxTop = box.getBoundingClientRect().top
+    let current = SECTIONS[0].id
+    for (const sct of SECTIONS) {
+      const el = box.querySelector<HTMLElement>(`#${sct.id}`)
+      if (!el) continue
+      if (el.getBoundingClientRect().top - boxTop <= TOP_OFFSET + 8) current = sct.id
+    }
+    setActive(current)
+  }, [])
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box) return
+    box.addEventListener('scroll', updateActive, { passive: true })
+    updateActive()
+    return () => box.removeEventListener('scroll', updateActive)
+  }, [updateActive, result, loading])
+  const jump = (id: string) => {
+    const box = boxRef.current
+    const el = box?.querySelector<HTMLElement>(`#${id}`)
+    if (!box || !el) return
+    const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - TOP_OFFSET
+    box.scrollTo({ top, behavior: 'smooth' })
+  }
 
   if (!result && !loading && !hasPartial) {
     return (
+      <div style={boxHeight ? { height: boxHeight } : undefined} className="[&>div]:h-full [&>div]:mb-0 [&>div]:box-border">
       <Card icon="result" title="결과">
         {/* 2026-09-08 — 첫 방문 빈 상태를 3단계 안내로(UX 점검: 빈 상태가 곧 안내). */}
         <p className="text-sm font-bold text-ink mt-0 mb-1">담보 주소 하나로 침수 위험·건물취약도·예상손실과 근거 인용 심사메모를 만듭니다</p>
@@ -73,17 +97,18 @@ export function ResultSection({
         </div>
         <p className="text-[11.5px] text-muted/80 mt-3 mb-0">이 산출물은 AI 기반 참고자료이며 여신 결정이 아닙니다.</p>
       </Card>
+      </div>
     )
   }
 
   if (result?.error) {
     return (
-      <>
-        <TargetBanner meta={meta} />
-        <Card icon="result" title="결과">
-          <div className="bg-[#fdecea] text-[#8a1f12] rounded-[10px] py-3.5 px-4 text-[13px]">{result.error}</div>
-        </Card>
-      </>
+      <div style={boxHeight ? { height: boxHeight } : undefined} className="[&>div]:h-full [&>div]:mb-0 [&>div]:box-border">
+      <Card icon="result" title="결과">
+        <p className="text-[12.5px] text-muted mt-0">{meta?.address}</p>
+        <div className="bg-[#fdecea] text-[#8a1f12] rounded-[10px] py-3.5 px-4 text-[13px]">{result.error}</div>
+      </Card>
+      </div>
     )
   }
 
@@ -94,63 +119,148 @@ export function ResultSection({
   const portfolioPending = loading && (advisory === undefined || (triggered && view.portfolio_batch === undefined))
 
   return (
-    <>
-      <TargetBanner meta={meta} />
+    <div
+      ref={boxRef}
+      style={boxHeight ? { height: boxHeight } : undefined}
+      className={`bg-surface border border-border/50 rounded-card shadow-card ${boxHeight ? 'overflow-y-auto' : ''}`}
+    >
+      <ResultTopBar data={view} meta={meta} loading={loading} active={active} onJump={jump} />
+      <div className="px-4 pt-4 pb-6 bg-[#f6f8f8]">
+      <ConclusionSection data={view} meta={meta} loading={loading} />
+
+      <Panel>
+      <ActionsSection data={view} meta={meta} loading={loading} />
+      <SummarySection data={view} meta={meta} />
 
       {view.flood ? (
-        <FloodCard data={view.flood} coverageLabel={view.coverage_label ?? undefined} />
+        <PanelSection id="sec-flood" title="침수 노출" note="환경부 홍수위험지도 · 행안부 침수흔적">
+          <FloodCard data={view.flood} coverageLabel={view.coverage_label ?? undefined} depth={view.flood_depth_class} marks={view.flood_marks} meta={meta} exposure={view.building?.floor_exposure} bare />
+        </PanelSection>
       ) : (
-        <PendingCard icon="flood" title="침수 위험 판정" text="홍수위험지도를 조회하고 있어요" />
+        <PendingPanelSection id="sec-flood" title="침수 노출" text="홍수위험지도를 조회하고 있어요" />
       )}
 
       {view.building ? (
-        <BuildingCard data={view.building} />
+        <PanelSection id="sec-building" title="건물취약도" note="국토교통부 건축HUB">
+          <BuildingCard data={view.building} bare />
+        </PanelSection>
       ) : (
-        <PendingCard icon="building" title="건물취약도" text="건축물대장을 조회하고 있어요" />
+        <PendingPanelSection id="sec-building" title="건물취약도" text="건축물대장을 조회하고 있어요" />
       )}
 
       {view.scenario ? (
-        <Card icon="chart" title="예상 손실액(EAL) 분포">
+        <PanelSection id="sec-eal" title="예상손실" note={`몬테카를로 ${view.scenario.eal.n_iterations.toLocaleString()}회 · 시드 고정`}>
+          {view.scenario.eal.status === 'OK' && view.scenario.eal.EAL_mean != null ? (
+            <p className="text-[13.5px] leading-relaxed text-ink mt-0 mb-2">
+              연평균 예상손실은 <b>{fmtWon(view.scenario.eal.EAL_mean)}</b>이에요
+              {meta?.collateralValue ? `(담보가액의 ${((view.scenario.eal.EAL_mean / meta.collateralValue) * 100).toFixed(2)}%)` : ''}.
+              {view.scenario.eal.EAL_p95 === 0 ? ' 대부분의 해에는 손실이 없고, 드문 침수 해의 큰 손실이 평균을 만들어요.' : ''}
+            </p>
+          ) : (
+            <p className="text-[13.5px] leading-relaxed text-ink mt-0 mb-2">
+              예상손실을 <b>산출하지 않았어요</b>({view.scenario.eal.reason ?? '입력 데이터 불충분'}). 데이터 없음은 위험 낮음이 아니에요.
+            </p>
+          )}
           <KvRow label="평균 EAL" value={fmtWon(view.scenario.eal.EAL_mean)} />
           <KvRow label="p95 / p99" value={`${fmtWon(view.scenario.eal.EAL_p95)} / ${fmtWon(view.scenario.eal.EAL_p99)}`} />
           <EalChart bins={view.scenario.eal.distribution_histogram_bins} />
-          <p className="text-muted text-xs">
-            시드 {view.scenario.eal.seed}, {view.scenario.eal.n_iterations.toLocaleString()}회 몬테카를로 시뮬레이션
-          </p>
-        </Card>
+          {view.scenario.adaptation && (
+            <div className="mt-3 bg-surface-alt rounded-[10px] py-3 px-3.5">
+              <div className="text-[12px] font-bold text-ink mb-1.5">차수판 설치 시 예상손실 <span className="font-normal text-muted">— 같은 시드 재실행 · 참고치</span></div>
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr>
+                    <th className="text-left py-1.5 font-semibold text-muted border-b border-border/40">차수판 높이</th>
+                    <th className="text-right py-1.5 font-semibold text-muted border-b border-border/40">설치 후 평균 EAL</th>
+                    <th className="text-right py-1.5 font-semibold text-muted border-b border-border/40">변화</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-1.5">현재(설치 전)</td>
+                    <td className="py-1.5 text-right tabular-nums font-bold">{fmtWon(view.scenario.adaptation.baseline_EAL_mean)}</td>
+                    <td className="py-1.5 text-right text-muted">—</td>
+                  </tr>
+                  {view.scenario.adaptation.scenarios.map((sc) => (
+                    <tr key={sc.barrier_height_m}>
+                      <td className="py-1.5">{sc.barrier_height_m}m</td>
+                      <td className="py-1.5 text-right tabular-nums">{fmtWon(sc.EAL_mean)}</td>
+                      <td className="py-1.5 text-right tabular-nums text-[#0f6b57] font-semibold">{(sc.change_pct * 100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[11px] text-muted mt-2 mb-0">{view.scenario.adaptation.assumption_note}</p>
+            </div>
+          )}
+          <Details summary="계산 방식 · 재현 정보">
+            <p className="text-[11.5px] text-muted mt-0 mb-1">{view.scenario.eal.methodology_note}</p>
+            <p className="text-[11.5px] text-muted m-0">
+              시드 {view.scenario.eal.seed} · {view.scenario.eal.n_iterations.toLocaleString()}회 — 같은 시드로 재실행하면 같은 값이 나와요
+              {view.scenario.source_id ? ` · ${view.scenario.source_id}` : ''}
+            </p>
+          </Details>
+        </PanelSection>
       ) : (
-        <PendingCard icon="chart" title="예상 손실액(EAL) 분포" text="몬테카를로 시뮬레이션을 돌리고 있어요" />
-      )}
-
-      {view.memo ? (
-        <MemoCard memo={view.memo} />
-      ) : (
-        <PendingCard icon="memo" title="근거 인용 심사메모" text="근거를 인용한 심사메모를 작성하고 있어요 (LLM 호출)" />
+        <PendingPanelSection id="sec-eal" title="예상손실" text="몬테카를로 시뮬레이션을 돌리고 있어요" />
       )}
 
       {advisory ? (
-        <AdvisoryCard advisory={advisory} />
+        <PanelSection id="sec-advisory" title="특보 · 재심사 알림" note="기상청 특보 · 재난문자 · 특보 지역 포트폴리오 재계산">
+          <AdvisoryCard advisory={advisory} bare />
+          <div className="mt-4 pt-4 border-t border-surface-alt">
+            {portfolioPending ? (
+              <p className="text-muted text-xs flex items-center gap-2 m-0">
+                <span className="w-2 h-2 rounded-full bg-accent animate-pulse-dot flex-none" />
+                발효된 특보에 따라 특보 지역 담보를 재계산하고 있어요
+              </p>
+            ) : (
+              <PortfolioCard
+                portfolioBatch={view.portfolio_batch ?? null}
+                esgRecommendations={view.esg_recommendations ?? []}
+                insuranceUnconfirmedCount={view.insurance_unconfirmed_count}
+                bare
+              />
+            )}
+          </div>
+        </PanelSection>
       ) : (
-        <PendingCard icon="bell" title="기상특보 이력" text="기상특보 이력을 조회하고 있어요" />
+        <PendingPanelSection id="sec-advisory" title="특보 · 재심사 알림" text="기상특보 이력을 조회하고 있어요" />
       )}
 
-      {portfolioPending ? (
-        <PendingCard
-          icon="portfolio"
-          title="포트폴리오 재심사 알림 · ESG 추천"
-          text={advisory === undefined ? '특보 조회 결과를 기다리는 중이에요' : '발효된 특보에 따라 포트폴리오를 재계산하고 있어요'}
-        />
+      {view.memo ? (
+        <PanelSection id="sec-memo" title="근거 원문" note={`심사메모 ${view.memo.sections.length}문장 · 인용 검증 통과 ${view.memo.sections.length} · 반려 ${view.memo.rejected_sentences.length}`} lead="위 내용의 원문이에요. 문장마다 출처가 붙어 있고, 출처가 없는 문장은 자동으로 빠져요.">
+          <MemoCard memo={view.memo} bare />
+        </PanelSection>
       ) : (
-        <PortfolioCard
-          portfolioBatch={view.portfolio_batch ?? null}
-          esgRecommendations={view.esg_recommendations ?? []}
-          insuranceUnconfirmedCount={view.insurance_unconfirmed_count}
-        />
+        <PendingPanelSection id="sec-memo" title="근거 원문" text="근거를 인용한 심사메모를 작성하고 있어요 (LLM 호출)" />
       )}
+      <div className="h-3" />
+      </Panel>
 
+      {view.timings && (
+        <div className="bg-surface border border-border/50 rounded-card shadow-card px-[18px] py-1 mb-3">
+          <Details summary={`처리 소요 ${view.timings.total_seconds.toFixed(1)}초 · 단계별 실측 시간`}>
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
+              {view.timings.stages
+                .filter((st) => st.stage !== 'done')
+                .map((st) => (
+                  <span key={st.stage} className={`rounded px-2 py-1 tabular-nums ${st.stage === 'portfolio' ? 'bg-accent-soft text-title font-bold' : 'bg-surface-alt text-muted'}`}>
+                    {STAGE_LABEL[st.stage] ?? st.stage} {st.seconds.toFixed(1)}s
+                  </span>
+                ))}
+            </div>
+            <p className="text-[11px] text-muted mt-2 mb-0">
+              각 단계가 실제로 시작된 시각의 차이예요(타이머 흉내 아님).
+              {view.timings.alert_latency_seconds != null ? ` 특보 조회 시작부터 특보 지역 담보 재계산 완료까지 ${view.timings.alert_latency_seconds.toFixed(1)}초.` : ''}
+            </p>
+          </Details>
+        </div>
+      )}
       {view.memo && (
         <div className="mt-[22px] bg-warn-bg text-warn-ink rounded-xl py-3.5 px-4 text-xs shadow-card">{view.memo.disclosure}</div>
       )}
-    </>
+      </div>
+    </div>
   )
 }

@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { InputMode, PortfolioListItem, QueryMode, RegionPreset, ResolvedRegion } from '../types'
-import { Card } from './Card'
+import { LineIcon } from './Icons'
 import { AddressField } from './AddressField'
 import { PortfolioPicker } from './PortfolioPicker'
 
@@ -27,13 +28,22 @@ interface AssessFormProps {
   onQueryDateChange: (value: string) => void
   onEventChip: (preset: RegionPreset) => void
   onSubmit: () => void
+  /** 가운데 결과 상자와 같은 높이(px). 없으면 내용 높이(좁은 화면 세로 스택). */
+  height?: number
 }
 
 // 2026-09-08 — 입력 폼 수정(UX 점검 반영, 디자인 캔버스 4p): 라벨에 1·2·3 순서 번호, 내부 문서
 // 참조(HANDOVER §⑧ 등) 문구 제거, 보조 설명은 라벨 오른쪽에 작게.
-const labelClass = 'flex justify-between items-baseline text-xs font-semibold text-muted mt-3.5 mb-1.5 tracking-wide'
+// 2026-09-08(계속6) — 토스형 3단에서 왼쪽 카드가 가운데 결과 상자보다 항상 길던 문제: 카드 높이를
+// 상자와 같게 고정하고(헤더 / 필드 / 바닥 고정 버튼), 필드를 압축 — 신규·기존 토글을 헤더 오른쪽
+// 텍스트 탭으로, 과거 사건 재현은 사건 칩이 주 조작이고 날짜 입력은 "직접 입력"을 눌러야 펼침,
+// 버튼 아래 소요시간 안내(가운데 빈 상태에 이미 있음)와 두 줄짜리 주소 안내 삭제.
+const labelClass = 'flex justify-between items-baseline text-xs font-semibold text-muted mt-3 mb-1.5 tracking-wide'
+// 라벨 왼쪽 / 컨트롤 오른쪽 한 줄 행(토스 주문하기 폼 참고) — 담보가액·담보 층처럼 컨트롤이 짧은 항목용
+const rowClass = 'flex items-center gap-2 mt-3'
+const rowLabelClass = 'w-[64px] flex-none text-xs font-semibold text-muted tracking-wide whitespace-nowrap'
 const inputClass =
-  'w-full py-2.5 px-3 border border-border rounded-control text-[13px] [font-family:inherit] text-ink bg-surface transition-[border-color,box-shadow] duration-150 ease-out focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(0,168,143,0.16)]'
+  'w-full py-2 px-3 border border-border rounded-control text-[13px] [font-family:inherit] text-ink bg-surface transition-[border-color,box-shadow] duration-150 ease-out focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(0,168,143,0.16)]'
 
 function StepNo({ n }: { n: number }) {
   return <span className="text-title mr-1">{n}</span>
@@ -64,11 +74,9 @@ function RegionStatus({ detectedRegion }: { detectedRegion: ResolvedRegion | nul
   )
 }
 
-const tabButtonClass = (active: boolean) =>
-  `flex-1 py-2 px-3 text-[13px] font-semibold rounded-control border transition-colors duration-150 ease-out cursor-pointer ${
-    active
-      ? 'bg-accent text-white border-accent'
-      : 'bg-surface text-muted border-border hover:bg-surface-alt'
+const modeTabClass = (active: boolean) =>
+  `bg-transparent border-0 border-b-2 px-0.5 py-1 text-[11.5px] cursor-pointer whitespace-nowrap transition-colors ${
+    active ? 'border-title text-ink font-bold' : 'border-transparent text-muted font-semibold hover:text-ink'
   }`
 
 /** 세그먼트 컨트롤 — OS 네이티브 <select> 대신 쓴다(선택지 2~3개는 드롭다운이 필요 없고,
@@ -95,7 +103,7 @@ function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 py-2 px-2 text-[13px] font-semibold border-r border-border last:border-r-0 transition-colors duration-150 cursor-pointer ${
+            className={`flex-1 py-[7px] px-1.5 text-[12.5px] font-semibold whitespace-nowrap border-r border-border last:border-r-0 transition-colors duration-150 cursor-pointer ${
               active ? 'bg-title text-white' : 'bg-surface text-muted hover:bg-surface-alt'
             }`}
           >
@@ -141,7 +149,10 @@ export function AssessForm({
   onQueryDateChange,
   onEventChip,
   onSubmit,
+  height,
 }: AssessFormProps) {
+  // 날짜 직접 입력란은 접어 두고, 사건 칩과 안 맞는 날짜가 이미 들어 있으면 펼친 채로 시작
+  const [showDateInput, setShowDateInput] = useState(false)
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     onSubmit()
@@ -150,22 +161,30 @@ export function AssessForm({
   const eventChips = presets.filter((p) => p.sample_date)
   const eokLabel = fmtEok(collateralValue)
   const historicalNeedsDate = queryMode === 'historical' && !queryDate
+  const dateMatchesChip = eventChips.some((p) => p.sample_date === queryDate)
+  const dateInputOpen = showDateInput || (!!queryDate && !dateMatchesChip)
 
   return (
-    <Card icon="result" title="담보 평가">
-      <form onSubmit={handleSubmit}>
-        <div className="flex gap-2">
-          <button type="button" className={tabButtonClass(inputMode === 'new')} onClick={() => onInputModeChange('new')}>
-            신규 담보 조회
+    <div
+      style={height ? { height } : undefined}
+      className="bg-surface border border-border/50 rounded-card shadow-card px-6 pt-4 pb-5 flex flex-col"
+    >
+      <div className="flex items-center gap-2 pb-2.5 mb-1 border-b border-surface-alt flex-none">
+        <span className="flex-none w-7 h-7 rounded-[9px] bg-gradient-to-br from-accent-soft to-white border border-accent/20 text-title flex items-center justify-center">
+          <LineIcon icon="result" className="w-4 h-4" />
+        </span>
+        <h2 className="text-[15px] font-bold m-0 text-ink tracking-tight whitespace-nowrap">담보 평가</h2>
+        <div className="ml-auto flex gap-2" role="tablist" aria-label="입력 방식">
+          <button type="button" role="tab" aria-selected={inputMode === 'new'} className={modeTabClass(inputMode === 'new')} onClick={() => onInputModeChange('new')}>
+            신규 담보
           </button>
-          <button
-            type="button"
-            className={tabButtonClass(inputMode === 'portfolio')}
-            onClick={() => onInputModeChange('portfolio')}
-          >
-            기존 포트폴리오 조회
+          <button type="button" role="tab" aria-selected={inputMode === 'portfolio'} className={modeTabClass(inputMode === 'portfolio')} onClick={() => onInputModeChange('portfolio')}>
+            기존 포트폴리오
           </button>
         </div>
+      </div>
+      <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
 
         <label htmlFor="address" className={labelClass}>
           <span>
@@ -184,7 +203,7 @@ export function AssessForm({
           <PortfolioPicker inputClassName={inputClass} onSelect={onPortfolioSelect} onRegionResolved={onRegionResolved} />
         )}
         {inputMode === 'new' && !detectedRegion && (
-          <p className="text-[11px] text-muted/80 mt-1.5">입력하면 지역을 자동으로 감지해요 (대구·포항·거제 커버리지)</p>
+          <p className="text-[11px] text-muted/80 mt-1.5 truncate">대구·포항·거제 커버리지 · 지역은 자동 감지</p>
         )}
         <RegionStatus detectedRegion={detectedRegion} />
 
@@ -206,14 +225,6 @@ export function AssessForm({
         />
         {queryMode === 'historical' && (
           <>
-            <input
-              id="query-date"
-              type="date"
-              className={`${inputClass} mt-2`}
-              value={queryDate}
-              onChange={(e) => onQueryDateChange(e.target.value)}
-              aria-label="조회 날짜"
-            />
             {eventChips.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {eventChips.map((p) => {
@@ -233,71 +244,88 @@ export function AssessForm({
                 })}
               </div>
             )}
-            {historicalNeedsDate && <p className="text-[11px] text-muted mt-1.5">날짜를 고르거나 위 사건 칩을 눌러 주세요.</p>}
+            {dateInputOpen ? (
+              <input
+                id="query-date"
+                type="date"
+                className={`${inputClass} mt-2`}
+                value={queryDate}
+                onChange={(e) => onQueryDateChange(e.target.value)}
+                aria-label="조회 날짜"
+              />
+            ) : (
+              <p className="text-[11px] text-muted mt-1.5 mb-0 flex justify-between">
+                <span>{historicalNeedsDate ? '사건 칩을 고르세요' : `조회일 ${queryDate}`}</span>
+                <button type="button" onClick={() => setShowDateInput(true)} className="bg-transparent border-0 p-0 text-[11px] font-semibold text-title hover:underline cursor-pointer">
+                  날짜 직접 입력
+                </button>
+              </p>
+            )}
           </>
         )}
 
-        <label htmlFor="collateral-value" className={labelClass}>
-          <span>
+        <div className={rowClass}>
+          <label htmlFor="collateral-value" className={rowLabelClass}>
             <StepNo n={3} />
             담보가액
-          </span>
-          <span className="font-normal text-[11px] text-muted/80">원 단위</span>
-        </label>
-        <div className="relative">
-          <input
-            id="collateral-value"
-            type="number"
-            required
-            step={1000000}
-            className={`${inputClass} ${eokLabel ? 'pr-24' : ''}`}
-            value={collateralValue}
-            onChange={(e) => onCollateralValueChange(e.target.value)}
-          />
-          {eokLabel && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted pointer-events-none">{eokLabel}</span>}
-        </div>
-
-        <div className={labelClass}>
-          <span>
-            담보 층 <span className="font-normal text-muted/80">(선택)</span>
-          </span>
-          <span className="font-normal text-[11px] text-muted/80">층별 침수 노출 계산</span>
-        </div>
-        <div className="flex gap-2 items-stretch">
-          <div className="flex-1">
-            <Segmented<string>
-              name="담보 층 구분"
-              value={floorType}
-              options={[
-                { value: '', label: '미입력' },
-                { value: '지상', label: '지상' },
-                { value: '지하', label: '지하' },
-              ]}
-              onChange={onFloorTypeChange}
+          </label>
+          <div className="relative flex-1 min-w-0">
+            <input
+              id="collateral-value"
+              type="number"
+              required
+              step={1000000}
+              placeholder="원 단위"
+              className={`${inputClass} ${eokLabel ? 'pr-20' : ''}`}
+              value={collateralValue}
+              onChange={(e) => onCollateralValueChange(e.target.value)}
             />
+            {eokLabel && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted pointer-events-none">{eokLabel}</span>}
           </div>
-          <input
-            id="floor-no"
-            type="number"
-            min={1}
-            placeholder="층수"
-            aria-label="층수"
-            disabled={!floorType}
-            className={`${inputClass} max-w-[96px] disabled:bg-surface-alt disabled:cursor-not-allowed`}
-            value={floorNo}
-            onChange={(e) => onFloorNoChange(e.target.value)}
-          />
         </div>
 
+        <div className={rowClass}>
+          <span className={rowLabelClass} title="선택 — 층별 침수 노출 계산에 씁니다">
+            담보 층
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex gap-1.5 items-stretch">
+              <div className="flex-1 min-w-0">
+                <Segmented<string>
+                  name="담보 층 구분"
+                  value={floorType}
+                  options={[
+                    { value: '', label: '미입력' },
+                    { value: '지상', label: '지상' },
+                    { value: '지하', label: '지하' },
+                  ]}
+                  onChange={onFloorTypeChange}
+                />
+              </div>
+              <input
+                id="floor-no"
+                type="number"
+                min={1}
+                placeholder="층수"
+                aria-label="층수"
+                disabled={!floorType}
+                className={`${inputClass} flex-none max-w-[66px] px-2 disabled:bg-surface-alt disabled:cursor-not-allowed`}
+                value={floorNo}
+                onChange={(e) => onFloorNoChange(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        </div>
         <button
           type="submit"
           disabled={submitting || historicalNeedsDate}
-          className="mt-[18px] w-full bg-accent text-white border-none rounded-control py-3 px-3.5 text-sm font-bold cursor-pointer shadow-[0_6px_16px_-6px_rgba(0,168,143,0.55)] transition-[background,transform,box-shadow] duration-150 ease-out enabled:hover:bg-title enabled:hover:-translate-y-px enabled:hover:shadow-[0_10px_20px_-8px_rgba(0,127,108,0.5)] enabled:active:translate-y-0 disabled:bg-border disabled:shadow-none disabled:cursor-not-allowed"
+          className="mt-4 flex-none w-full bg-accent text-white border-none rounded-control py-3 px-3.5 text-sm font-bold cursor-pointer shadow-[0_6px_16px_-6px_rgba(0,168,143,0.55)] transition-[background,transform,box-shadow] duration-150 ease-out enabled:hover:bg-title enabled:hover:-translate-y-px enabled:hover:shadow-[0_10px_20px_-8px_rgba(0,127,108,0.5)] enabled:active:translate-y-0 disabled:bg-border disabled:shadow-none disabled:cursor-not-allowed"
         >
           {submitting ? '평가 실행 중...' : '평가 실행'}
         </button>
-        <p className="text-[11px] text-muted/80 text-center mt-2 mb-0">침수 판정·건물·손실은 10초 안에, 심사메모는 약 1분 뒤에 나와요</p>
       </form>
-    </Card>
+    </div>
   )
 }
